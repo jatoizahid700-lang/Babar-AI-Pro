@@ -1,156 +1,135 @@
-import os
 import streamlit as st
+import json
+import os
+import time
 from groq import Groq
 
-st.set_page_config(
-    page_title="NEXUS AI",
-    page_icon="⚡",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+# ========================
+# CONFIG
+# ========================
+st.set_page_config(page_title="NEXUS AI", page_icon="⚡")
 
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+# ========================
+# LOAD API
+# ========================
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-* { font-family: 'Inter', sans-serif; }
+# ========================
+# SESSION INIT
+# ========================
+if "user" not in st.session_state:
+    st.session_state.user = None
 
-html, body, [class*="css"] {
-    background: radial-gradient(circle at top, #0f172a 0%, #020617 60%, #020617 100%);
-    color: white;
-}
+if "last_time" not in st.session_state:
+    st.session_state.last_time = 0
 
-.block-container {
-    padding-top: 1rem;
-    padding-bottom: 6rem;
-    max-width: 900px;
-}
+# ========================
+# LOAD USERS
+# ========================
+def load_users():
+    with open("users.json", "r") as f:
+        return json.load(f)
 
-.hero {
-    text-align: center;
-    margin-bottom: 1rem;
-}
+# ========================
+# LOGIN SYSTEM
+# ========================
+def login():
+    st.title("🔐 NEXUS AI Login")
 
-.hero h1 {
-    margin: 0;
-    font-size: 2.2rem;
-    font-weight: 800;
-    background: linear-gradient(135deg, #60a5fa, #a855f7);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
 
-.hero p {
-    margin: 0.4rem 0 0;
-    color: #94a3b8;
-    font-size: 0.95rem;
-}
+    if st.button("Login"):
+        users = load_users()
 
-.stTextInput > div > div > input,
-.stTextArea textarea {
-    border-radius: 16px !important;
-    border: 1px solid rgba(148,163,184,0.18) !important;
-    background: rgba(15, 23, 42, 0.95) !important;
-    color: white !important;
-}
+        if username in users and users[username] == password:
+            st.session_state.user = username
+            st.success("Login Successful ✅")
+            st.rerun()
+        else:
+            st.error("Invalid Credentials ❌")
 
-.stButton > button {
-    border-radius: 16px;
-    border: none;
-    padding: 0.8rem 1.2rem;
-    width: 100%;
-    background: linear-gradient(135deg, #60a5fa, #a855f7);
-    color: white;
-    font-weight: 700;
-}
-
-.chat-bubble {
-    max-width: 88%;
-    padding: 0.95rem 1.05rem;
-    border-radius: 18px;
-    line-height: 1.55;
-    font-size: 0.98rem;
-    margin-bottom: 0.8rem;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    box-shadow: 0 4px 18px rgba(0,0,0,0.08);
-}
-
-.user {
-    margin-left: auto;
-    background: linear-gradient(135deg, #667eea, #7c3aed);
-    color: white;
-    border-bottom-right-radius: 6px;
-}
-
-.assistant {
-    margin-right: auto;
-    background: rgba(17,24,39,0.96);
-    color: #e5e7eb;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-bottom-left-radius: 6px;
-}
-</style>
-""", unsafe_allow_html=True)
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-api_key = os.getenv("GROQ_API_KEY", "").strip()
-client = Groq(api_key=api_key) if api_key else None
-
-st.markdown("""
-<div class="hero">
-    <h1>⚡ NEXUS AI</h1>
-    <p>Fast, smart, clean chat experience powered by Groq</p>
-</div>
-""", unsafe_allow_html=True)
-
-with st.sidebar:
-    st.markdown("### ⚙️ Settings")
-    selected_model = st.selectbox(
-        "Model",
-        ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"]
-    )
-
-    temperature = st.slider("Temperature", 0.0, 1.5, 0.7, 0.1)
-    max_tokens = st.slider("Max tokens", 128, 4096, 1024, 128)
-
-    system_prompt = st.text_area(
-        "System prompt",
-        value="You are a helpful assistant. Reply clearly, smartly, and in the same language as the user.",
-        height=110
-    )
-
-    if st.button("Clear chat"):
-        st.session_state.messages = []
-        st.rerun()
-
-if not api_key:
-    st.error("GROQ_API_KEY set karein environment variable ya Streamlit secrets mein.")
+if not st.session_state.user:
+    login()
     st.stop()
 
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+# ========================
+# MEMORY SYSTEM
+# ========================
+def get_memory_file():
+    return f"memory/{st.session_state.user}.json"
 
-prompt = st.chat_input("Message likhein...")
+def load_memory():
+    file = get_memory_file()
 
-if prompt:
-    st.session_state.messages.append({"role": "user", "content": prompt})
+    if not os.path.exists(file):
+        return []
 
-    with st.chat_message("assistant"):
-        with st.spinner("Soch raha hoon..."):
-            try:
-                messages = [{"role": "system", "content": system_prompt}] + st.session_state.messages
-                response = client.chat.completions.create(
-                    model=selected_model,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                )
-                reply = response.choices[0].message.content or "No response returned."
-                st.markdown(reply)
-                st.session_state.messages.append({"role": "assistant", "content": reply})
-            except Exception as e:
-                st.error(str(e))
+    with open(file, "r") as f:
+        return json.load(f)
+
+def save_memory(chat):
+    file = get_memory_file()
+
+    os.makedirs("memory", exist_ok=True)
+
+    with open(file, "w") as f:
+        json.dump(chat, f)
+
+chat_history = load_memory()
+
+# ========================
+# RATE LIMIT
+# ========================
+def rate_limit():
+    if time.time() - st.session_state.last_time < 2:
+        st.warning("Slow down...")
+        st.stop()
+
+    st.session_state.last_time = time.time()
+
+# ========================
+# UI
+# ========================
+st.title(f"⚡ NEXUS AI - Welcome {st.session_state.user}")
+
+# Show history
+for msg in chat_history:
+    st.write(f"👤: {msg['user']}")
+    st.write(f"🤖: {msg['bot']}")
+
+# ========================
+# INPUT
+# ========================
+user_input = st.text_input("Ask something...")
+
+if user_input:
+    rate_limit()
+
+    # AI CALL
+    response = client.chat.completions.create(
+        model="llama3-70b-8192",
+        messages=[
+            {"role": "system", "content": "You are a smart AI with memory."},
+            {"role": "user", "content": user_input}
+        ]
+    )
+
+    answer = response.choices[0].message.content
+
+    # Save memory
+    chat_history.append({
+        "user": user_input,
+        "bot": answer
+    })
+
+    save_memory(chat_history)
+
+    st.write("🤖:", answer)
+
+# ========================
+# LOGOUT
+# ========================
+if st.button("Logout"):
+    st.session_state.user = None
+    st.rerun()
