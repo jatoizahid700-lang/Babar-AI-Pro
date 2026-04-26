@@ -10,23 +10,23 @@ try:
 except:
     st.set_page_config(page_title="Babar's AI Pro", page_icon="🤖")
 
-# 2. API Key setup
+# 2. Connection
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 st.title("🤖 Babar's AI Helper")
+st.caption("Latest 2026 Stable Version")
 
 # 3. File Uploader
-uploaded_file = st.file_uploader("Pic upload karein", type=["jpg", "png", "jpeg"])
+uploaded_file = st.file_uploader("Pic upload karein (Optional)", type=["jpg", "png", "jpeg"])
 
-# History dikhayen
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 4. Chat Logic
+# 4. Chat Input
 if prompt := st.chat_input("Yahan sawal likhen..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -35,7 +35,7 @@ if prompt := st.chat_input("Yahan sawal likhen..."):
     with st.chat_message("assistant"):
         try:
             if uploaded_file:
-                # VISION LOGIC (Agar photo hai)
+                # Vision Model
                 base64_image = base64.b64encode(uploaded_file.read()).decode('utf-8')
                 response = client.chat.completions.create(
                     model="llama-3.2-11b-vision-preview",
@@ -48,9 +48,9 @@ if prompt := st.chat_input("Yahan sawal likhen..."):
                     }]
                 )
             else:
-                # TEXT ONLY LOGIC (Agar photo nahi hai)
+                # Sabse Stable Text Model (Llama 3)
                 response = client.chat.completions.create(
-                    model="llama3-8b-8192",  # Yeh text ke liye best aur fast hai
+                    model="llama3-70b-8192", 
                     messages=[{"role": "user", "content": prompt}]
                 )
             
@@ -58,5 +58,5 @@ if prompt := st.chat_input("Yahan sawal likhen..."):
             st.markdown(msg)
             st.session_state.messages.append({"role": "assistant", "content": msg})
         except Exception as e:
-            st.error(f"Groq Error: {e}")
+            st.error(f"Model Update Required: {e}")
             
