@@ -2,79 +2,62 @@ import streamlit as st
 from groq import Groq
 
 # -------------------------
-# SETUP
+# PAGE CONFIG
 # -------------------------
-st.set_page_config(page_title="Babar AI Voice", page_icon="🎤", layout="wide")
+st.set_page_config(
+    page_title="NEXUS AI",
+    page_icon="🧠",
+    layout="wide"
+)
 
-st.title("🎤🤖 Babar AI (Groq + Voice)")
+st.title("🧠 NEXUS AI")
+st.caption("⚡ Powered by Groq | Fast AI Chat System")
 
+# -------------------------
+# GROQ CLIENT
+# -------------------------
 groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
+# -------------------------
+# SESSION STATE
+# -------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
-
 
 # -------------------------
 # MODEL
 # -------------------------
-model = st.selectbox("Choose Model", [
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant"
-])
-
+model = st.selectbox(
+    "Choose AI Model",
+    [
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant"
+    ]
+)
 
 # -------------------------
-# GROQ FUNCTION
+# FUNCTION
 # -------------------------
-def ask_groq(text):
+def ask_groq(prompt):
     response = groq_client.chat.completions.create(
         model=model,
-        messages=[{"role": "user", "content": text}],
+        messages=[{"role": "user", "content": prompt}],
     )
     return response.choices[0].message.content
 
 
 # -------------------------
-# VOICE INPUT (JS)
+# INPUT
 # -------------------------
-st.subheader("🎤 Voice Input")
-
-voice_html = """
-<button onclick="startDictation()">🎤 Speak</button>
-
-<p id="output"></p>
-
-<script>
-function startDictation() {
-    var recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = 'en-US';
-
-    recognition.onresult = function(event) {
-        var text = event.results[0][0].transcript;
-        document.getElementById("output").innerText = text;
-        window.parent.postMessage({type: "streamlit:setComponentValue", value: text}, "*");
-    };
-
-    recognition.start();
-}
-</script>
-"""
-
-voice_text = st.components.v1.html(voice_html, height=100)
-
-
-# -------------------------
-# TEXT INPUT
-# -------------------------
-prompt = st.text_area("💬 Or type your message")
-
+prompt = st.text_area("💬 Enter your message")
 send = st.button("🚀 Send")
 
 
 # -------------------------
-# CHAT DISPLAY
+# CHAT HISTORY
 # -------------------------
 st.divider()
+st.subheader("🧠 Chat History")
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
@@ -82,24 +65,38 @@ for msg in st.session_state.messages:
 
 
 # -------------------------
-# SEND LOGIC
+# SEND MESSAGE
 # -------------------------
-final_prompt = voice_text if voice_text else prompt
-
 if send:
 
-    if not final_prompt:
-        st.warning("Kuch bolo ya likho")
+    if not prompt.strip():
+        st.warning("Message likho pehle")
         st.stop()
 
-    st.session_state.messages.append({"role": "user", "content": final_prompt})
+    st.session_state.messages.append({"role": "user", "content": prompt})
 
     with st.chat_message("user"):
-        st.markdown(final_prompt)
+        st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("Thinking... ⚡"):
-            reply = ask_groq(final_prompt)
-            st.markdown(reply)
+        with st.spinner("NEXUS AI thinking... ⚡"):
+            try:
+                reply = ask_groq(prompt)
 
-    st.session_state.messages.append({"role": "assistant", "content": reply})
+                st.success("⚡ Response from NEXUS AI")
+                st.markdown(reply)
+
+                st.session_state.messages.append(
+                    {"role": "assistant", "content": reply}
+                )
+
+            except Exception as e:
+                st.error("❌ Error occurred")
+                st.code(str(e))
+
+
+# -------------------------
+# FOOTER
+# -------------------------
+st.markdown("---")
+st.caption("🧠 NEXUS AI | Built with Groq + Streamlit")
