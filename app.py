@@ -7,10 +7,10 @@ from groq import Groq
 # ========================
 # CONFIG
 # ========================
-st.set_page_config(page_title="NEXUS AI", page_icon="⚡")
+st.set_page_config(page_title="⚡ NEXUS AI", layout="centered")
 
 # ========================
-# LOAD API
+# LOAD API KEY
 # ========================
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
@@ -24,30 +24,26 @@ if "last_time" not in st.session_state:
     st.session_state.last_time = 0
 
 # ========================
-# LOAD USERS
+# LOGIN SYSTEM
 # ========================
 def load_users():
     with open("users.json", "r") as f:
         return json.load(f)
 
-# ========================
-# LOGIN SYSTEM
-# ========================
 def login():
     st.title("🔐 NEXUS AI Login")
 
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+    u = st.text_input("Username")
+    p = st.text_input("Password", type="password")
 
     if st.button("Login"):
         users = load_users()
-
-        if username in users and users[username] == password:
-            st.session_state.user = username
-            st.success("Login Successful ✅")
+        if u in users and users[u] == p:
+            st.session_state.user = u
+            st.success("Login Success ✅")
             st.rerun()
         else:
-            st.error("Invalid Credentials ❌")
+            st.error("Wrong login ❌")
 
 if not st.session_state.user:
     login()
@@ -56,25 +52,19 @@ if not st.session_state.user:
 # ========================
 # MEMORY SYSTEM
 # ========================
-def get_memory_file():
+def memory_file():
     return f"memory/{st.session_state.user}.json"
 
 def load_memory():
-    file = get_memory_file()
-
-    if not os.path.exists(file):
+    if not os.path.exists(memory_file()):
         return []
-
-    with open(file, "r") as f:
+    with open(memory_file(), "r") as f:
         return json.load(f)
 
-def save_memory(chat):
-    file = get_memory_file()
-
+def save_memory(data):
     os.makedirs("memory", exist_ok=True)
-
-    with open(file, "w") as f:
-        json.dump(chat, f)
+    with open(memory_file(), "w") as f:
+        json.dump(data, f)
 
 chat_history = load_memory()
 
@@ -83,10 +73,33 @@ chat_history = load_memory()
 # ========================
 def rate_limit():
     if time.time() - st.session_state.last_time < 2:
-        st.warning("Slow down...")
+        st.warning("⏳ Wait 2 sec...")
         st.stop()
-
     st.session_state.last_time = time.time()
+
+# ========================
+# MODEL AUTO SWITCH (🔥)
+# ========================
+MODELS = [
+    "llama-3.1-8b-instant",
+    "llama-3.3-70b-versatile",
+    "mixtral-8x7b-32768"
+]
+
+def get_ai_response(prompt):
+    for m in MODELS:
+        try:
+            response = client.chat.completions.create(
+                model=m,
+                messages=[
+                    {"role": "system", "content": "You are a smart AI assistant."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            return response.choices[0].message.content
+        except:
+            continue
+    return "⚠️ All models failed"
 
 # ========================
 # UI
@@ -94,30 +107,20 @@ def rate_limit():
 st.title(f"⚡ NEXUS AI - Welcome {st.session_state.user}")
 
 # Show history
-for msg in chat_history:
-    st.write(f"👤: {msg['user']}")
-    st.write(f"🤖: {msg['bot']}")
+for chat in chat_history:
+    st.write(f"👤: {chat['user']}")
+    st.write(f"🤖: {chat['bot']}")
 
 # ========================
 # INPUT
 # ========================
 user_input = st.text_input("Ask something...")
 
-if user_input:
+if user_input and user_input.strip() != "":
     rate_limit()
 
-    # AI CALL
-    response = client.chat.completions.create(
-        model="llama3-70b-8192",
-        messages=[
-            {"role": "system", "content": "You are a smart AI with memory."},
-            {"role": "user", "content": user_input}
-        ]
-    )
+    answer = get_ai_response(user_input)
 
-    answer = response.choices[0].message.content
-
-    # Save memory
     chat_history.append({
         "user": user_input,
         "bot": answer
