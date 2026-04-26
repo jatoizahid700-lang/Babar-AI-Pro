@@ -17,7 +17,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 st.title("🤖 Babar's AI Helper")
-st.caption("Latest 2026 Stable Version")
+st.caption("Latest 2026 Stable Version | Llama 3.3")
 
 # 3. File Uploader
 uploaded_file = st.file_uploader("Pic upload karein (Optional)", type=["jpg", "png", "jpeg"])
@@ -35,7 +35,7 @@ if prompt := st.chat_input("Yahan sawal likhen..."):
     with st.chat_message("assistant"):
         try:
             if uploaded_file:
-                # Vision Model
+                # Vision Model (Latest)
                 base64_image = base64.b64encode(uploaded_file.read()).decode('utf-8')
                 response = client.chat.completions.create(
                     model="llama-3.2-11b-vision-preview",
@@ -48,9 +48,9 @@ if prompt := st.chat_input("Yahan sawal likhen..."):
                     }]
                 )
             else:
-                # Sabse Stable Text Model (Llama 3)
+                # Naya Stable Model (Jo band nahi hua)
                 response = client.chat.completions.create(
-                    model="llama3-70b-8192", 
+                    model="llama-3.3-70b-versatile", 
                     messages=[{"role": "user", "content": prompt}]
                 )
             
@@ -58,5 +58,4 @@ if prompt := st.chat_input("Yahan sawal likhen..."):
             st.markdown(msg)
             st.session_state.messages.append({"role": "assistant", "content": msg})
         except Exception as e:
-            st.error(f"Model Update Required: {e}")
-            
+            st.error(f"Error: {e}")
