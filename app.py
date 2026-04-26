@@ -1,11 +1,10 @@
-
 import os
 import streamlit as st
 from groq import Groq
 
 st.set_page_config(
     page_title="NEXUS AI",
-    page_icon="👨‍🔧",
+    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -91,30 +90,24 @@ html, body, [class*="css"] {
     border: 1px solid rgba(255,255,255,0.08);
     border-bottom-left-radius: 6px;
 }
-
-.small-note {
-    color: #94a3b8;
-    font-size: 0.85rem;
-    margin-top: 0.35rem;
-}
 </style>
 """, unsafe_allow_html=True)
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+api_key = os.getenv("GROQ_API_KEY", "").strip()
+client = Groq(api_key=api_key) if api_key else None
+
 st.markdown("""
 <div class="hero">
-    <h1>âš¡ NEXUS AI</h1>
+    <h1>⚡ NEXUS AI</h1>
     <p>Fast, smart, clean chat experience powered by Groq</p>
 </div>
 """, unsafe_allow_html=True)
 
 with st.sidebar:
-    st.markdown("### âš™ï¸ Settings")
-    st.session_state.groq_api_key = st.text_input(
-        "Groq API Key",
-        type="password",
-        value=st.session_state.groq_api_key,
-        placeholder="gsk_..."
-    )
-
+    st.markdown("### ⚙️ Settings")
     selected_model = st.selectbox(
         "Model",
         ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"]
@@ -125,40 +118,4 @@ with st.sidebar:
 
     system_prompt = st.text_area(
         "System prompt",
-        value="You are a helpful assistant. Reply clearly, smartly, and in the same language as the user.",
-        height=110
-    )
-
-    if st.button("Clear chat"):
-        st.session_state.messages = []
-        st.rerun()
-
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-prompt = st.chat_input("Message likhein...")
-
-if prompt:
-    if not st.session_state.groq_api_key.strip():
-        st.error("Groq API key add karein.")
-        st.stop()
-
-    client = Groq(api_key=st.session_state.groq_api_key.strip())
-    st.session_state.messages.append({"role": "user", "content": prompt})
-
-    with st.chat_message("assistant"):
-        with st.spinner("Soch raha hoon..."):
-            messages = [{"role": "system", "content": system_prompt}] + st.session_state.messages
-            try:
-                response = client.chat.completions.create(
-                    model=selected_model,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                )
-                reply = response.choices[0].message.content or "No response returned."
-                st.markdown(reply)
-                st.session_state.messages.append({"role": "assistant", "content": reply})
-            except Exception as e:
-                st.error(str(e))
+        value="You are a hel
