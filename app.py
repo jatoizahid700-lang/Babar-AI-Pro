@@ -2,77 +2,64 @@ import streamlit as st
 import base64
 
 from openai import OpenAI
-import google.generativeai as genai
 from groq import Groq
 
 # ---------------------------
 # 🔐 API KEYS
 # ---------------------------
 openai_client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-
 groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 
 # ---------------------------
-# 🎨 UI CONFIG
+# 🎨 UI SETUP
 # ---------------------------
-st.set_page_config(page_title="Babar AI Ultra 2.0", layout="wide")
+st.set_page_config(page_title="Babar AI Dual System", layout="wide")
 
-st.title("🤖 Babar AI Ultra 2.0")
-st.caption("Multi AI System (OpenAI + Gemini + Groq + Vision Support)")
-
-
-# ---------------------------
-# 🧠 MODEL SELECTOR
-# ---------------------------
-model_choice = st.selectbox(
-    "Choose AI Model",
-    ["OpenAI GPT-4o", "Gemini 1.5", "Groq Llama3"]
-)
-
+st.title("🤖 Babar AI Dual System")
+st.caption("OpenAI + Groq AI (Fast + Smart Chat + Image Support)")
 
 # ---------------------------
-# 💬 INPUTS
+# MODEL SELECT
+# ---------------------------
+model = st.selectbox("Choose AI Model", ["OpenAI GPT-4o", "Groq Llama3"])
+
+# ---------------------------
+# INPUTS
 # ---------------------------
 prompt = st.text_area("💬 Enter your prompt")
-
-uploaded_file = st.file_uploader(
-    "🖼️ Upload Image (optional)",
-    type=["png", "jpg", "jpeg"]
-)
+image = st.file_uploader("🖼️ Upload image (OpenAI only)", type=["png", "jpg", "jpeg"])
 
 send = st.button("🚀 Send")
 
 
 # ---------------------------
-# 🧾 IMAGE CONVERT FUNCTION
+# IMAGE ENCODING
 # ---------------------------
-def encode_image(file):
+def encode_img(file):
     return base64.b64encode(file.read()).decode("utf-8")
 
 
 # ---------------------------
-# 🤖 PROCESSING
+# MAIN LOGIC
 # ---------------------------
 if send:
 
-    if not prompt and not uploaded_file:
-        st.warning("Please enter prompt or upload image")
+    if not prompt and not image:
+        st.warning("Prompt ya image zaroor do")
         st.stop()
 
     with st.spinner("Thinking... 🤔"):
 
         # =========================
-        # OPENAI (VISION + TEXT)
+        # OPENAI (TEXT + IMAGE)
         # =========================
-        if model_choice == "OpenAI GPT-4o":
+        if model == "OpenAI GPT-4o":
 
             content = [{"type": "text", "text": prompt}]
 
-            if uploaded_file:
-                img = encode_image(uploaded_file)
+            if image:
+                img = encode_img(image)
                 content.append({
                     "type": "image_url",
                     "image_url": {
@@ -89,26 +76,12 @@ if send:
 
 
         # =========================
-        # GEMINI (TEXT ONLY SAFE)
+        # GROQ (FAST TEXT ONLY)
         # =========================
-        elif model_choice == "Gemini 1.5":
+        elif model == "Groq Llama3":
 
-            model = genai.GenerativeModel("gemini-1.5-pro")
-
-            if uploaded_file:
-                st.warning("Gemini demo mode: image support limited here (text only used)")
-            
-            response = model.generate_content(prompt)
-            st.success(response.text)
-
-
-        # =========================
-        # GROQ (FAST TEXT)
-        # =========================
-        elif model_choice == "Groq Llama3":
-
-            if uploaded_file:
-                st.warning("Groq is text-only. Image ignored.")
+            if image:
+                st.warning("Groq image support nahi karta — sirf text use hoga")
 
             chat = groq_client.chat.completions.create(
                 model="llama3-70b-8192",
@@ -119,7 +92,7 @@ if send:
 
 
 # ---------------------------
-# 🔥 FOOTER
+# FOOTER
 # ---------------------------
 st.markdown("---")
-st.caption("⚡ Built with OpenAI + Gemini + Groq | Babar AI System")
+st.caption("⚡ Built with OpenAI + Groq | Babar AI System")
