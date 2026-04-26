@@ -67,15 +67,29 @@ def file_to_data_url(uploaded_file) -> str:
     return f"data:{mime};base64,{b64}"
 
 
+def get_secret_value(name: str) -> str:
+    session_value = st.session_state.get(name.lower())
+    if session_value:
+        return session_value
+
+    try:
+        if name in st.secrets and st.secrets[name]:
+            return st.secrets[name]
+    except Exception:
+        pass
+
+    return os.getenv(name, "")
+
+
 def get_openai_client() -> Optional[OpenAI]:
-    api_key = st.session_state.get("openai_api_key") or os.getenv("OPENAI_API_KEY")
+    api_key = get_secret_value("OPENAI_API_KEY")
     if not api_key:
         return None
     return OpenAI(api_key=api_key)
 
 
 def get_groq_client() -> Optional[Groq]:
-    api_key = st.session_state.get("groq_api_key") or os.getenv("GROQ_API_KEY")
+    api_key = get_secret_value("GROQ_API_KEY")
     if not api_key:
         return None
     return Groq(api_key=api_key)
@@ -192,9 +206,6 @@ def ask_ai(
                 return {"provider": "OpenAI", "content": answer}
 
             if provider == "Groq":
-                if image_data_url:
-                    errors.append("Groq fallback skipped because image input sirf OpenAI ke sath enable hai.")
-                    continue
                 if not groq_client:
                     raise RuntimeError("Groq key configured nahi hai.")
                 messages = build_messages(prompt, system_prompt)
@@ -205,6 +216,8 @@ def ask_ai(
                     temperature=temperature,
                     max_tokens=max_tokens,
                 )
+                if image_data_url:
+                    answer = "⚠️ OpenAI image analysis unavailable thi, is liye Groq ne sirf text prompt par answer diya hai.\n\n" + answer
                 return {"provider": "Groq", "content": answer}
         except Exception as e:
             errors.append(f"{provider}: {e}")
@@ -254,13 +267,13 @@ with st.sidebar:
     st.session_state.openai_api_key = st.text_input(
         "OpenAI API Key",
         type="password",
-        value=st.session_state.get("openai_api_key", os.getenv("OPENAI_API_KEY", "")),
+        value=st.session_state.get("openai_api_key", get_secret_value("OPENAI_API_KEY")),
         placeholder="sk-...",
     )
     st.session_state.groq_api_key = st.text_input(
         "Groq API Key",
         type="password",
-        value=st.session_state.get("groq_api_key", os.getenv("GROQ_API_KEY", "")),
+        value=st.session_state.get("groq_api_key", get_secret_value("GROQ_API_KEY")),
         placeholder="gsk_...",
     )
 
@@ -367,5 +380,5 @@ with st.expander("🛠️ Why your old app was failing"):
         - Image upload sirf OpenAI path mein handle hota hai
         - Chat history محفوظ rehti hai
         """
-        )
-                
+            )
+    
