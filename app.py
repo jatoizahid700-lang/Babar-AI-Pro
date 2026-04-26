@@ -4,8 +4,6 @@ import os
 import time
 from datetime import datetime
 from groq import Groq
-import plotly.express as px
-import plotly.graph_objects as go
 
 # ========================
 # CONFIG - Professional Theme
@@ -16,337 +14,379 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for Professional Look
+# Professional CSS
 st.markdown("""
 <style>
     .main-header {
         font-size: 3rem !important;
         font-weight: 700 !important;
-        color: #1e3a8a !important;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
         text-align: center;
         margin-bottom: 2rem;
     }
     .user-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 1.5rem;
-        border-radius: 15px;
+        background: linear-gradient(135deg, #1e40af, #1e3a8a);
+        padding: 2rem;
+        border-radius: 20px;
         color: white;
         margin-bottom: 2rem;
+        box-shadow: 0 20px 40px rgba(30,64,175,0.3);
     }
-    .chat-bubble-user {
+    .chat-user {
         background: linear-gradient(135deg, #3b82f6, #1d4ed8);
         color: white;
-        padding: 1rem 1.5rem;
-        border-radius: 20px 20px 5px 20px;
-        margin: 0.5rem 0;
+        padding: 1.2rem 1.5rem;
+        border-radius: 25px 25px 5px 25px;
+        margin: 1rem 0;
+        box-shadow: 0 5px 15px rgba(59,130,246,0.3);
     }
-    .chat-bubble-bot {
+    .chat-bot {
         background: linear-gradient(135deg, #10b981, #059669);
         color: white;
-        padding: 1rem 1.5rem;
-        border-radius: 20px 20px 20px 5px;
-        margin: 0.5rem 0;
+        padding: 1.2rem 1.5rem;
+        border-radius: 25px 25px 25px 5px;
+        margin: 1rem 0;
+        box-shadow: 0 5px 15px rgba(16,185,129,0.3);
     }
-    .btn-primary {
+    .btn-modern {
         background: linear-gradient(135deg, #3b82f6, #1d4ed8);
         border: none;
-        border-radius: 10px;
-        padding: 0.75rem 2rem;
+        border-radius: 12px;
+        padding: 0.8rem 2rem;
+        font-weight: 600;
+        color: white;
+        transition: all 0.3s;
+        box-shadow: 0 4px 15px rgba(59,130,246,0.3);
+    }
+    .btn-modern:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(59,130,246,0.4);
+    }
+    .btn-secondary {
+        background: linear-gradient(135deg, #6b7280, #4b5563);
+        border: none;
+        border-radius: 12px;
+        padding: 0.8rem 2rem;
         font-weight: 600;
         color: white;
         transition: all 0.3s;
     }
-    .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 20px rgba(59,130,246,0.3);
+    .stats-card {
+        background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+        padding: 1.5rem;
+        border-radius: 15px;
+        text-align: center;
+        border-left: 5px solid #3b82f6;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ========================
-# LOAD API KEY
+# GROQ CLIENT
 # ========================
 @st.cache_resource
-def init_client():
+def get_client():
     return Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-client = init_client()
+client = get_client()
 
 # ========================
-# SESSION INIT
+# SESSION STATE
 # ========================
-if "user" not in st.session_state:
-    st.session_state.user = None
-if "last_time" not in st.session_state:
-    st.session_state.last_time = 0
-if "theme" not in st.session_state:
-    st.session_state.theme = "dark"
+def init_session():
+    defaults = {
+        "user": None,
+        "last_time": 0,
+        "show_history": False,
+        "chat_history": []
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+init_session()
 
 # ========================
-# LOGIN SYSTEM - Enhanced
+# USER MANAGEMENT
 # ========================
 def load_users():
     if os.path.exists("users.json"):
-        with open("users.json", "r") as f:
-            return json.load(f)
+        try:
+            with open("users.json", "r") as f:
+                return json.load(f)
+        except:
+            return {}
     return {}
+
+def save_users(users):
+    with open("users.json", "w") as f:
+        json.dump(users, f, indent=2)
 
 def register_user(username, password):
     users = load_users()
     if username in users:
-        return False, "User already exists!"
+        return False, "❌ User already exists!"
     users[username] = password
-    with open("users.json", "w") as f:
-        json.dump(users, f)
-    return True, "Registration successful!"
+    save_users(users)
+    return True, "✅ Registration successful!"
 
-def login():
-    # Full screen login
-    col1, col2, col3 = st.columns([1,2,1])
+# ========================
+# MEMORY SYSTEM
+# ========================
+def get_memory_file():
+    os.makedirs("memory", exist_ok=True)
+    return f"memory/{st.session_state.user}.json"
+
+def load_memory():
+    try:
+        if os.path.exists(get_memory_file()):
+            with open(get_memory_file(), "r") as f:
+                return json.load(f)
+    except:
+        pass
+    return []
+
+def save_memory(data):
+    try:
+        with open(get_memory_file(), "w") as f:
+            json.dump(data, f, indent=2)
+    except:
+        st.error("Failed to save memory!")
+
+# ========================
+# LOGIN SCREEN
+# ========================
+def show_login():
+    st.markdown('<h1 class="main-header">🔐 NEXUS AI Pro</h1>', unsafe_allow_html=True)
     
+    col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown('<h1 class="main-header">🔐 NEXUS AI Pro</h1>', unsafe_allow_html=True)
-        st.markdown("### Professional AI Assistant")
+        st.markdown("### 🚀 Professional AI Assistant")
+        st.markdown("*Fast • Smart • Secure*")
         
         tab1, tab2 = st.tabs(["🔑 Login", "📝 Register"])
         
         with tab1:
-            u = st.text_input("👤 Username", key="login_user")
-            p = st.text_input("🔒 Password", type="password", key="login_pass")
+            username = st.text_input("👤 Username", key="login_user")
+            password = st.text_input("🔒 Password", type="password", key="login_pass")
             
-            col_btn1, col_btn2 = st.columns(2)
-            with col_btn1:
-                if st.button("🚀 Login", key="login_btn", use_container_width=True):
+            col_a, col_b = st.columns([1, 1])
+            with col_a:
+                if st.button("🚀 Login", key="login", use_container_width=True):
                     users = load_users()
-                    if u in users and users[u] == p:
-                        st.session_state.user = u
+                    if username in users and users[username] == password:
+                        st.session_state.user = username
+                        st.session_state.chat_history = load_memory()
                         st.success("✅ Login Successful!")
                         st.rerun()
                     else:
                         st.error("❌ Invalid credentials!")
             
         with tab2:
-            reg_user = st.text_input("👤 New Username", key="reg_user")
-            reg_pass = st.text_input("🔒 New Password", type="password", key="reg_pass")
+            reg_username = st.text_input("👤 New Username", key="reg_user")
+            reg_password = st.text_input("🔒 New Password", type="password", key="reg_pass")
             reg_confirm = st.text_input("🔒 Confirm Password", type="password", key="reg_confirm")
             
-            if st.button("📝 Register", key="reg_btn", use_container_width=True):
-                if reg_pass != reg_confirm:
-                    st.error("❌ Passwords don't match!")
-                else:
-                    success, msg = register_user(reg_user, reg_pass)
-                    if success:
-                        st.success("✅ " + msg)
-                    else:
-                        st.error("❌ " + msg)
+            if reg_password and reg_confirm and reg_password == reg_confirm:
+                if st.button("📝 Register", key="register", use_container_width=True):
+                    success, message = register_user(reg_username, reg_password)
+                    st.info(message)
+            elif st.button("📝 Register", key="register", use_container_width=True, disabled=True):
+                pass
 
 if not st.session_state.user:
-    login()
+    show_login()
     st.stop()
 
 # ========================
-# MEMORY SYSTEM - Enhanced
+# RATE LIMITER
 # ========================
-def memory_file():
-    os.makedirs("memory", exist_ok=True)
-    return f"memory/{st.session_state.user}.json"
-
-def load_memory():
-    if not os.path.exists(memory_file()):
-        return []
-    with open(memory_file(), "r") as f:
-        return json.load(f)
-
-def save_memory(data):
-    with open(memory_file(), "w") as f:
-        json.dump(data, f, indent=2)
-
-chat_history = load_memory()
-
-# ========================
-# RATE LIMIT
-# ========================
-def rate_limit():
-    if time.time() - st.session_state.last_time < 2:
-        st.warning("⏳ Please wait 2 seconds between messages...")
+def check_rate_limit():
+    current_time = time.time()
+    if current_time - st.session_state.last_time < 2:
+        st.warning("⏳ Please wait 2 seconds...")
         time.sleep(2)
         st.rerun()
-    st.session_state.last_time = time.time()
+    st.session_state.last_time = current_time
 
 # ========================
-# ENHANCED AI MODELS
+# AI RESPONSE
 # ========================
 MODELS = [
     "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant", 
+    "llama-3.1-8b-instant",
     "mixtral-8x7b-32768"
 ]
 
 def get_ai_response(prompt):
     for model in MODELS:
         try:
-            with st.spinner(f"🤖 Thinking with {model}..."):
+            with st.spinner(f"🤖 {model} is thinking..."):
                 response = client.chat.completions.create(
                     model=model,
                     messages=[
-                        {"role": "system", "content": "You are NEXUS AI Pro - a professional, helpful, and intelligent assistant. Provide detailed, accurate responses."},
+                        {"role": "system", "content": "You are NEXUS AI Pro - Professional, helpful, accurate AI assistant."},
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.7,
-                    max_tokens=2000
+                    max_tokens=1500
                 )
                 return response.choices[0].message.content, model
         except Exception as e:
+            st.warning(f"Model {model} failed, trying next...")
             continue
-    return "⚠️ All models unavailable. Please try again.", None
+    return "⚠️ All models unavailable. Please try again later.", None
 
 # ========================
 # MAIN DASHBOARD
 # ========================
 # Header
-col1, col2, col3 = st.columns([1, 3, 1])
-with col2:
-    st.markdown(f'<h1 class="main-header">⚡ NEXUS AI Pro</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="main-header">⚡ NEXUS AI Pro</h1>', unsafe_allow_html=True)
 
-# User Dashboard
-col1, col2 = st.columns([2, 1])
+# User Info & Controls
+col1, col2 = st.columns([3, 1])
 with col1:
-    st.markdown("""
+    st.markdown(f"""
     <div class="user-card">
-        <h3>👋 Welcome back!</h3>
-        <p><strong>User:</strong> {}</p>
-        <p><strong>Session:</strong> {}</p>
-        <p><strong>Total Messages:</strong> {}</p>
+        <h3>👋 Welcome, <strong>{st.session_state.user}</strong>!</h3>
+        <p>🕒 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        <p>💬 Total Messages: <strong>{len(st.session_state.chat_history)}</strong></p>
     </div>
-    """.format(st.session_state.user, datetime.now().strftime("%Y-%m-%d %H:%M"), len(chat_history)), 
-    unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 with col2:
-    if st.button("🔄 Clear History", use_container_width=True):
-        chat_history.clear()
-        save_memory(chat_history)
-        st.success("History cleared!")
-        st.rerun()
-    
-    if st.button("🚪 Logout", use_container_width=True):
-        for key in list(st.session_state.keys()):
-            del st.session_state[key]
-        st.rerun()
+    col_btn1, col_btn2 = st.columns(2)
+    with col_btn1:
+        if st.button("🗑️ Clear History", key="clear", use_container_width=True):
+            st.session_state.chat_history = []
+            save_memory([])
+            st.success("History cleared!")
+            st.rerun()
+    with col_btn2:
+        if st.button("🚪 Logout", key="logout", use_container_width=True):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
 
 # Stats
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.metric("💬 Total Chats", len(chat_history))
-with col2:
-    st.metric("🤖 AI Responses", len([c for c in chat_history if 'bot' in c]))
-with col3:
-    model_used = chat_history[-1].get('model', 'Unknown') if chat_history else 'None'
-    st.metric("🎯 Last Model", model_used)
+    st.markdown("""
+    <div class="stats-card">
+        <h3 style='color: #3b82f6; margin: 0;'>💬 Chats</h3>
+        <h2 style='margin: 0; color: #1e40af;'>{}</h2>
+    </div>
+    """.format(len(st.session_state.chat_history)), unsafe_allow_html=True)
 
-# ========================
-# CHAT INTERFACE
-# ========================
+with col2:
+    avg_length = sum(len(str(chat.get('user', '')) + str(chat.get('bot', ''))) for chat in st.session_state.chat_history) / max(1, len(st.session_state.chat_history))
+    st.markdown(f"""
+    <div class="stats-card">
+        <h3 style='color: #10b981; margin: 0;'>📊 Avg Length</h3>
+        <h2 style='margin: 0; color: #059669;'>{avg_length:.0f} chars</h2>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col3:
+    st.markdown("""
+    <div class="stats-card">
+        <h3 style='color: #f59e0b; margin: 0;'>⚡ Uptime</h3>
+        <h2 style='margin: 0; color: #d97706;'>100%</h2>
+    </div>
+    """, unsafe_allow_html=True)
+
 st.markdown("---")
 
-# Send Message Button Section
-col1, col2 = st.columns([4, 1])
-with col1:
+# ========================
+# CHAT INPUT
+# ========================
+col_input1, col_input2 = st.columns([4, 1])
+with col_input1:
     user_input = st.text_input(
-        "💭 Ask NEXUS AI anything...", 
-        placeholder="Type your message here...",
-        label_visibility="collapsed"
+        "💭 Ask anything...", 
+        placeholder="Type your question here...",
+        label_visibility="collapsed",
+        key="user_input"
     )
 
-with col2:
-    send_clicked = st.button("📤 Send", key="send_btn", use_container_width=True, help="Send message")
+with col_input2:
+    send_message = st.button("📤 Send", key="send_message", use_container_width=True)
 
-# History Check Button
-if st.button("📋 View Full History", key="history_btn"):
-    st.session_state.show_history = True
+# History Button
+if st.button("📋 Full History", key="show_history_btn", use_container_width=True):
+    st.session_state.show_history = not st.session_state.show_history
 
-# Process Message
-if send_clicked and user_input.strip():
-    rate_limit()
+# Send Message
+if send_message and user_input.strip():
+    check_rate_limit()
+    answer, model = get_ai_response(user_input)
     
-    with st.spinner("NEXUS AI is thinking..."):
-        answer, model_used = get_ai_response(user_input)
-        
-        new_chat = {
-            "user": user_input,
-            "bot": answer,
-            "timestamp": datetime.now().isoformat(),
-            "model": model_used
-        }
-        
-        chat_history.append(new_chat)
-        save_memory(chat_history)
-        st.rerun()
+    new_chat = {
+        "user": user_input,
+        "bot": answer,
+        "timestamp": datetime.now().isoformat(),
+        "model": model or "Unknown"
+    }
+    
+    st.session_state.chat_history.append(new_chat)
+    save_memory(st.session_state.chat_history)
+    st.rerun()
 
 # ========================
 # CHAT DISPLAY
 # ========================
-if chat_history:
-    st.subheader("💬 Conversation History")
-    
-    for i, chat in enumerate(reversed(chat_history[-20:])):  # Last 20 messages
-        with st.container():
-            col1, col2 = st.columns([1, 1])
-            
-            with col1:
-                timestamp = datetime.fromisoformat(chat['timestamp']).strftime("%H:%M")
-                st.markdown(f"""
-                <div class="chat-bubble-user">
-                    <small>{timestamp} 👤</small><br>
-                    {chat['user']}
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col2:
-                if 'model' in chat:
-                    st.markdown(f"""
-                    <div class="chat-bubble-bot">
-                        <small>{timestamp} 🤖 ({chat['model']})</small><br>
-                        {chat['bot']}
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.markdown(f"""
-                    <div class="chat-bubble-bot">
-                        <small>{timestamp} 🤖</small><br>
-                        {chat['bot']}
-                    </div>
-                    """, unsafe_allow_html=True)
+st.subheader("💬 Recent Conversations")
+
+if st.session_state.chat_history:
+    for chat in reversed(st.session_state.chat_history[-15:]):  # Last 15
+        col1, col2 = st.columns([1, 1])
+        
+        ts = datetime.fromisoformat(chat['timestamp']).strftime("%H:%M")
+        
+        with col1:
+            st.markdown(f"""
+            <div class="chat-user">
+                <small style='opacity: 0.8;'>{ts} 👤</small><br>
+                {chat['user']}
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div class="chat-bot">
+                <small style='opacity: 0.8;'>{ts} 🤖 {chat.get('model', 'AI')}</small><br>
+                {chat['bot']}
+            </div>
+            """, unsafe_allow_html=True)
+
+else:
+    st.info("👋 Start a conversation!")
 
 # ========================
-# FULL HISTORY MODAL
+# FULL HISTORY
 # ========================
-if 'show_history' in st.session_state and st.session_state.show_history:
+if st.session_state.show_history:
     st.markdown("---")
-    st.subheader("📚 Complete Chat History")
+    st.subheader("📚 Complete History")
     
-    # History Stats Chart
-    if len(chat_history) > 1:
-        df = px.data.frame({
-            'message': [f"Msg {i+1}" for i in range(len(chat_history))],
-            'length': [len(chat['user']) + len(chat['bot']) for chat in chat_history]
-        })
-        fig = px.bar(df, x='message', y='length', title="Message Length Over Time")
-        st.plotly_chart(fig, use_container_width=True)
+    for i, chat in enumerate(st.session_state.chat_history):
+        with st.expander(f"Chat #{i+1} - {datetime.fromisoformat(chat['timestamp']).strftime('%Y-%m-%d %H:%M')}"):
+            st.write("**👤 You:**", chat['user'])
+            st.write("**🤖 AI:**", chat['bot'])
+            if chat.get('model'):
+                st.caption(f"Model: {chat['model']}")
     
-    # Full history display
-    for chat in chat_history:
-        st.write(f"**👤 {chat['user'][:50]}...**")
-        st.write(f"**🤖 {chat['bot'][:100]}...**")
-        st.write("---")
-    
-    if st.button("❌ Close History"):
-        del st.session_state.show_history
+    if st.button("❌ Close History", key="close_history"):
+        st.session_state.show_history = False
         st.rerun()
 
 # Footer
 st.markdown("---")
 st.markdown("""
-<div style='text-align: center; color: #6b7280;'>
-    🚀 NEXUS AI Pro | Powered by Groq & Streamlit | © 2026
+<div style='text-align: center; padding: 2rem; color: #6b7280;'>
+    🚀 NEXUS AI Pro v2.0 | Powered by Groq | © 2026 | Made with ❤️
 </div>
 """, unsafe_allow_html=True)
