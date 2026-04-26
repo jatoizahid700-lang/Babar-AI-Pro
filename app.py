@@ -1,98 +1,71 @@
 import streamlit as st
 import base64
-
 from openai import OpenAI
 from groq import Groq
 
 # ---------------------------
-# 🔐 API KEYS
+# 🔐 KEYS
 # ---------------------------
 openai_client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
+# ---------------------------
+# 🎨 UI
+# ---------------------------
+st.title("🤖 Babar AI Auto Fallback System")
 
-# ---------------------------
-# 🎨 UI SETUP
-# ---------------------------
-st.set_page_config(page_title="Babar AI Dual System", layout="wide")
-
-st.title("🤖 Babar AI Dual System")
-st.caption("OpenAI + Groq AI (Fast + Smart Chat + Image Support)")
-
-# ---------------------------
-# MODEL SELECT
-# ---------------------------
-model = st.selectbox("Choose AI Model", ["OpenAI GPT-4o", "Groq Llama3"])
-
-# ---------------------------
-# INPUTS
-# ---------------------------
 prompt = st.text_area("💬 Enter your prompt")
-image = st.file_uploader("🖼️ Upload image (OpenAI only)", type=["png", "jpg", "jpeg"])
-
 send = st.button("🚀 Send")
 
 
 # ---------------------------
-# IMAGE ENCODING
+# 🧠 GROQ FUNCTION
 # ---------------------------
-def encode_img(file):
-    return base64.b64encode(file.read()).decode("utf-8")
+def ask_groq(prompt_text):
+    response = groq_client.chat.completions.create(
+        model="llama-3.1-70b-versatile",
+        messages=[{"role": "user", "content": prompt_text}]
+    )
+    return response.choices[0].message.content
 
 
 # ---------------------------
-# MAIN LOGIC
+# 🧠 OPENAI FUNCTION
+# ---------------------------
+def ask_openai(prompt_text):
+    response = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt_text}]
+    )
+    return response.choices[0].message.content
+
+
+# ---------------------------
+# 🔥 AUTO FALLBACK LOGIC
 # ---------------------------
 if send:
 
-    if not prompt and not image:
-        st.warning("Prompt ya image zaroor do")
+    if not prompt.strip():
+        st.error("Prompt required hai")
         st.stop()
 
-    with st.spinner("Thinking... 🤔"):
+    with st.spinner("AI thinking... 🤔"):
 
-        # =========================
-        # OPENAI (TEXT + IMAGE)
-        # =========================
-        if model == "OpenAI GPT-4o":
+        # STEP 1: TRY GROQ FIRST
+        try:
+            result = ask_groq(prompt)
+            st.success("⚡ Answer from GROQ (Fast AI)")
+            st.write(result)
 
-            content = [{"type": "text", "text": prompt}]
+        except Exception as e:
+            st.warning("⚠️ Groq failed, switching to OpenAI...")
 
-            if image:
-                img = encode_img(image)
-                content.append({
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/jpeg;base64,{img}"
-                    }
-                })
+            # STEP 2: FALLBACK OPENAI
+            try:
+                result = ask_openai(prompt)
+                st.success("🧠 Answer from OpenAI (Fallback)")
+                st.write(result)
 
-            response = openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": content}]
-            )
-
-            st.success(response.choices[0].message.content)
-
-
-        # =========================
-        # GROQ (FAST TEXT ONLY)
-        # =========================
-        elif model == "Groq Llama3":
-
-            if image:
-                st.warning("Groq image support nahi karta — sirf text use hoga")
-
-            chat = groq_client.chat.completions.create(
-                model="llama3-70b-8192",
-                messages=[{"role": "user", "content": prompt}]
-            )
-
-            st.success(chat.choices[0].message.content)
-
-
-# ---------------------------
-# FOOTER
-# ---------------------------
-st.markdown("---")
-st.caption("⚡ Built with OpenAI + Groq | Babar AI System")
+            except Exception as e2:
+                st.error("❌ Both AI failed")
+                st.code(str(e2))
