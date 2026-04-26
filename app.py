@@ -3,14 +3,14 @@ from groq import Groq
 import base64
 from PIL import Image
 
-# Page Config
+# 1. Page Config
 try:
     img = Image.open("logo.png")
     st.set_page_config(page_title="Babar's AI Pro", page_icon=img)
 except:
     st.set_page_config(page_title="Babar's AI Pro", page_icon="🤖")
 
-# API Key from Secrets
+# 2. API Key setup
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 if "messages" not in st.session_state:
@@ -18,13 +18,15 @@ if "messages" not in st.session_state:
 
 st.title("🤖 Babar's AI Helper")
 
-# Image Upload
+# 3. File Uploader
 uploaded_file = st.file_uploader("Pic upload karein", type=["jpg", "png", "jpeg"])
 
+# History dikhayen
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
+# 4. Chat Logic
 if prompt := st.chat_input("Yahan sawal likhen..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -33,7 +35,7 @@ if prompt := st.chat_input("Yahan sawal likhen..."):
     with st.chat_message("assistant"):
         try:
             if uploaded_file:
-                # Agar photo upload ki hai
+                # VISION LOGIC (Agar photo hai)
                 base64_image = base64.b64encode(uploaded_file.read()).decode('utf-8')
                 response = client.chat.completions.create(
                     model="llama-3.2-11b-vision-preview",
@@ -46,9 +48,9 @@ if prompt := st.chat_input("Yahan sawal likhen..."):
                     }]
                 )
             else:
-                # Agar sirf text msg hai
+                # TEXT ONLY LOGIC (Agar photo nahi hai)
                 response = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
+                    model="llama3-8b-8192",  # Yeh text ke liye best aur fast hai
                     messages=[{"role": "user", "content": prompt}]
                 )
             
@@ -56,5 +58,5 @@ if prompt := st.chat_input("Yahan sawal likhen..."):
             st.markdown(msg)
             st.session_state.messages.append({"role": "assistant", "content": msg})
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(f"Groq Error: {e}")
             
