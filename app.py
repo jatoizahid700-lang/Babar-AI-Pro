@@ -118,4 +118,39 @@ with st.sidebar:
 
     system_prompt = st.text_area(
         "System prompt",
-        value="You are a hel
+        value="You are a helpful assistant. Reply clearly, smartly, and in the same language as the user.",
+        height=110
+    )
+
+    if st.button("Clear chat"):
+        st.session_state.messages = []
+        st.rerun()
+
+if not api_key:
+    st.error("GROQ_API_KEY set karein environment variable ya Streamlit secrets mein.")
+    st.stop()
+
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+
+prompt = st.chat_input("Message likhein...")
+
+if prompt:
+    st.session_state.messages.append({"role": "user", "content": prompt})
+
+    with st.chat_message("assistant"):
+        with st.spinner("Soch raha hoon..."):
+            try:
+                messages = [{"role": "system", "content": system_prompt}] + st.session_state.messages
+                response = client.chat.completions.create(
+                    model=selected_model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+                reply = response.choices[0].message.content or "No response returned."
+                st.markdown(reply)
+                st.session_state.messages.append({"role": "assistant", "content": reply})
+            except Exception as e:
+                st.error(str(e))
