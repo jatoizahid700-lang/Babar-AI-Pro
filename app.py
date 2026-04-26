@@ -1,156 +1,47 @@
-import os
-import streamlit as st
-from groq import Groq
+import tkinter as tk
+from tkinter import scrolledtext
 
-st.set_page_config(
-    page_title="NEXUS AI",
-    page_icon="⚡",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+class ChatBot:
+    def __init__(self):
+        self.window = tk.Tk()
+        self.window.title("ChatBot")
+        self.window.geometry("400x600")
+        self.window.configure(bg="#2f4f7f")
 
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        self.chat_log = scrolledtext.ScrolledText(self.window, width=40, height=20, bg="#f0f0f0", fg="#2f4f7f")
+        self.chat_log.pack(padx=10, pady=10)
 
-* { font-family: 'Inter', sans-serif; }
+        self.input_field = tk.Entry(self.window, width=30, bg="#f0f0f0", fg="#2f4f7f")
+        self.input_field.pack(padx=10, pady=10)
 
-html, body, [class*="css"] {
-    background: radial-gradient(circle at top, #0f172a 0%, #020617 60%, #020617 100%);
-    color: white;
-}
+        self.send_button = tk.Button(self.window, text="Send", command=self.send_message, bg="#4CAF50", fg="#ffffff")
+        self.send_button.pack(padx=10, pady=10)
 
-.block-container {
-    padding-top: 1rem;
-    padding-bottom: 6rem;
-    max-width: 900px;
-}
+        self.clear_button = tk.Button(self.window, text="Clear", command=self.clear_chat, bg="#e74c3c", fg="#ffffff")
+        self.clear_button.pack(padx=10, pady=10)
 
-.hero {
-    text-align: center;
-    margin-bottom: 1rem;
-}
+    def send_message(self):
+        user_input = self.input_field.get()
+        self.chat_log.insert(tk.END, "User: " + user_input + "\n")
+        self.input_field.delete(0, tk.END)
 
-.hero h1 {
-    margin: 0;
-    font-size: 2.2rem;
-    font-weight: 800;
-    background: linear-gradient(135deg, #60a5fa, #a855f7);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
+        response = self.generate_response(user_input)
+        self.chat_log.insert(tk.END, "Bot: " + response + "\n")
 
-.hero p {
-    margin: 0.4rem 0 0;
-    color: #94a3b8;
-    font-size: 0.95rem;
-}
+    def generate_response(self, user_input):
+        if user_input == "hello":
+            return "Hi, how are you?"
+        elif user_input == "goodbye":
+            return "See you later!"
+        else:
+            return "I didn't understand that."
 
-.stTextInput > div > div > input,
-.stTextArea textarea {
-    border-radius: 16px !important;
-    border: 1px solid rgba(148,163,184,0.18) !important;
-    background: rgba(15, 23, 42, 0.95) !important;
-    color: white !important;
-}
+    def clear_chat(self):
+        self.chat_log.delete(1.0, tk.END)
 
-.stButton > button {
-    border-radius: 16px;
-    border: none;
-    padding: 0.8rem 1.2rem;
-    width: 100%;
-    background: linear-gradient(135deg, #60a5fa, #a855f7);
-    color: white;
-    font-weight: 700;
-}
+    def run(self):
+        self.window.mainloop()
 
-.chat-bubble {
-    max-width: 88%;
-    padding: 0.95rem 1.05rem;
-    border-radius: 18px;
-    line-height: 1.55;
-    font-size: 0.98rem;
-    margin-bottom: 0.8rem;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    box-shadow: 0 4px 18px rgba(0,0,0,0.08);
-}
-
-.user {
-    margin-left: auto;
-    background: linear-gradient(135deg, #667eea, #7c3aed);
-    color: white;
-    border-bottom-right-radius: 6px;
-}
-
-.assistant {
-    margin-right: auto;
-    background: rgba(17,24,39,0.96);
-    color: #e5e7eb;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-bottom-left-radius: 6px;
-}
-</style>
-""", unsafe_allow_html=True)
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-api_key = os.getenv("GROQ_API_KEY", "").strip()
-client = Groq(api_key=api_key) if api_key else None
-
-st.markdown("""
-<div class="hero">
-    <h1>⚡ NEXUS AI</h1>
-    <p>Fast, smart, clean chat experience powered by Groq</p>
-</div>
-""", unsafe_allow_html=True)
-
-with st.sidebar:
-    st.markdown("### ⚙️ Settings")
-    selected_model = st.selectbox(
-        "Model",
-        ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"]
-    )
-
-    temperature = st.slider("Temperature", 0.0, 1.5, 0.7, 0.1)
-    max_tokens = st.slider("Max tokens", 128, 4096, 1024, 128)
-
-    system_prompt = st.text_area(
-        "System prompt",
-        value="You are a helpful assistant. Reply clearly, smartly, and in the same language as the user.",
-        height=110
-    )
-
-    if st.button("Clear chat"):
-        st.session_state.messages = []
-        st.rerun()
-
-if not api_key:
-    st.error("GROQ_API_KEY set karein environment variable ya Streamlit secrets mein.")
-    st.stop()
-
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-prompt = st.chat_input("Message likhein...")
-
-if prompt:
-    st.session_state.messages.append({"role": "user", "content": prompt})
-
-    with st.chat_message("assistant"):
-        with st.spinner("Soch raha hoon..."):
-            try:
-                messages = [{"role": "system", "content": system_prompt}] + st.session_state.messages
-                response = client.chat.completions.create(
-                    model=selected_model,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                )
-                reply = response.choices[0].message.content or "No response returned."
-                st.markdown(reply)
-                st.session_state.messages.append({"role": "assistant", "content": reply})
-            except Exception as e:
-                st.error(str(e))
+if __name__ == "__main__":
+    chatbot = ChatBot()
+    chatbot.run()
