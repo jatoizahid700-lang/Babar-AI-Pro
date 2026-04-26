@@ -5,7 +5,7 @@ from groq import Groq
 
 st.set_page_config(
     page_title="NEXUS AI",
-    page_icon="âš¡",
+    page_icon="👨‍🔧",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
