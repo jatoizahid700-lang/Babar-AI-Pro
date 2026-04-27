@@ -4,141 +4,185 @@ import os
 import time
 from datetime import datetime
 from groq import Groq
+import hashlib
 
-st.set_page_config(page_title="NEXUS Pro AI", page_icon="🤖", layout="wide")
+st.set_page_config(
+    page_title="NEXUS Pro AI - Enterprise Edition",
+    page_icon="🎯",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
+# Custom CSS for Ultra Professional Look
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-* {font-family: 'Inter', sans-serif;}
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
-.main-header {
-    font-size: 2.5rem !important;
-    font-weight: 800 !important;
+* {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Main Container */
+.stApp {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    text-align: center;
-    margin: 1rem 0;
+}
+
+/* Sidebar Styling */
+.css-1d391kg {
+    background: rgba(255, 255, 255, 0.98) !important;
+    backdrop-filter: blur(10px);
+    border-right: 1px solid rgba(0,0,0,0.05);
+}
+
+/* Main Content */
+.main-content {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+    border-radius: 0;
+}
+
+/* Header */
+.pro-header {
+    background: white;
+    padding: 1rem 2rem;
+    border-radius: 0;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    margin-bottom: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 /* Chat Container */
-.chat-container {
-    height: calc(100vh - 250px);
+.chat-messages {
+    height: calc(100vh - 200px);
     overflow-y: auto;
-    padding: 1.5rem;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    border-radius: 24px;
-    margin: 0.5rem 0 1rem 0;
+    padding: 2rem;
+    background: transparent;
     scroll-behavior: smooth;
 }
 
 /* Message Bubbles */
-.message-group {
-    margin: 1rem 0;
+.message {
+    margin-bottom: 1.5rem;
     display: flex;
-    flex-direction: column;
+    animation: slideIn 0.3s ease;
 }
 
-.user-wrapper {
-    display: flex;
+.message.user {
     justify-content: flex-end;
-    margin-bottom: 0.5rem;
 }
 
-.ai-wrapper {
-    display: flex;
+.message.ai {
     justify-content: flex-start;
-    margin-bottom: 0.5rem;
 }
 
-.message-bubble {
+.message-content {
     max-width: 70%;
-    padding: 1rem 1.25rem;
+    padding: 1rem 1.5rem;
     border-radius: 20px;
     position: relative;
-    animation: slideIn 0.3s ease;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-.user-message {
+.user .message-content {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border-bottom-right-radius: 5px;
 }
 
-.ai-message {
+.ai .message-content {
     background: white;
     color: #1e293b;
     border-bottom-left-radius: 5px;
     border: 1px solid #e2e8f0;
 }
 
-.message-time {
-    font-size: 0.7rem;
-    opacity: 0.7;
-    margin-top: 0.5rem;
+.message-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 0.5rem;
+    font-size: 0.75rem;
+    opacity: 0.7;
 }
 
-.copy-btn {
-    background: none;
+.message-text {
+    line-height: 1.5;
+    font-size: 0.95rem;
+    word-wrap: break-word;
+}
+
+.message-actions {
+    margin-top: 0.5rem;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.action-btn {
+    background: transparent;
     border: none;
     cursor: pointer;
-    font-size: 0.8rem;
-    padding: 0 0.25rem;
-    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
     transition: all 0.2s;
+    color: inherit;
+    opacity: 0.6;
 }
 
-.copy-btn:hover {
+.action-btn:hover {
+    opacity: 1;
     background: rgba(0,0,0,0.1);
 }
 
-/* Input Container */
-.input-container {
+/* Input Area */
+.input-area {
     position: fixed;
-    bottom: 1rem;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 85%;
-    max-width: 900px;
+    bottom: 0;
+    left: 0;
+    right: 0;
     background: white;
-    padding: 1rem;
-    border-radius: 30px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    padding: 1.5rem;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
     z-index: 1000;
-    border: 1px solid rgba(102,126,234,0.3);
 }
 
 .input-wrapper {
+    max-width: 900px;
+    margin: 0 auto;
     display: flex;
-    gap: 0.75rem;
+    gap: 1rem;
     align-items: center;
 }
 
-.stTextInput > div > div > input {
-    border-radius: 25px !important;
-    border: 2px solid #e2e8f0 !important;
-    padding: 0.75rem 1.25rem !important;
-    font-size: 1rem !important;
-    transition: all 0.3s !important;
+.input-field {
+    flex: 1;
+    padding: 1rem 1.5rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 30px;
+    font-size: 1rem;
+    transition: all 0.3s;
+    background: white;
 }
 
-.stTextInput > div > div > input:focus {
-    border-color: #667eea !important;
-    box-shadow: 0 0 0 3px rgba(102,126,234,0.1) !important;
+.input-field:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
 }
 
-.send-button {
+.send-btn {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border: none;
     border-radius: 50%;
-    width: 45px;
-    height: 45px;
+    width: 50px;
+    height: 50px;
     font-size: 1.2rem;
     cursor: pointer;
     transition: all 0.3s;
@@ -147,39 +191,77 @@ st.markdown("""
     justify-content: center;
 }
 
-.send-button:hover {
+.send-btn:hover {
     transform: scale(1.05);
-    box-shadow: 0 5px 15px rgba(102,126,234,0.4);
+    box-shadow: 0 5px 20px rgba(102,126,234,0.4);
 }
 
-/* Header */
-.header-bar {
-    background: white;
-    padding: 1rem 1.5rem;
-    border-radius: 20px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+.send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Sidebar Elements */
+.sidebar-header {
+    text-align: center;
+    padding: 1rem;
+    border-bottom: 2px solid #f1f5f9;
     margin-bottom: 1rem;
 }
 
-.icon-btn {
-    background: #f1f5f9;
-    border: none;
-    border-radius: 10px;
-    padding: 0.5rem 1rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 0.9rem;
+.stat-card {
+    background: #f8fafc;
+    padding: 1rem;
+    border-radius: 12px;
+    margin: 0.5rem 0;
+    text-align: center;
 }
 
-.icon-btn:hover {
-    background: #e2e8f0;
-    transform: translateY(-2px);
+.stat-number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #667eea;
 }
 
-.sidebar-links {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
+/* Toast Notification */
+.toast-notification {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #10b981;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 50px;
+    z-index: 2000;
+    animation: fadeOut 2s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.toast-error {
+    background: #ef4444;
+}
+
+/* Loading Animation */
+.loading-dots {
+    display: inline-flex;
+    gap: 4px;
+}
+
+.loading-dots span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #667eea;
+    animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+.loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes bounce {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
 }
 
 @keyframes slideIn {
@@ -193,6 +275,12 @@ st.markdown("""
     }
 }
 
+@keyframes fadeOut {
+    0% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; visibility: hidden; }
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
     width: 8px;
@@ -204,60 +292,95 @@ st.markdown("""
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #888;
+    background: #667eea;
     border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: #764ba2;
 }
 
-/* Toast Message */
-.toast {
-    position: fixed;
-    bottom: 100px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #10b981;
+/* Button Styles */
+.pro-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
+    border: none;
     padding: 0.5rem 1rem;
-    border-radius: 8px;
-    z-index: 2000;
-    animation: fadeOut 2s ease;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+    width: 100%;
+    margin: 0.25rem 0;
 }
 
-@keyframes fadeOut {
-    0% { opacity: 1; }
-    70% { opacity: 1; }
-    100% { opacity: 0; visibility: hidden; }
+.pro-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102,126,234,0.4);
+}
+
+.danger-btn {
+    background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+}
+
+/* Typing Indicator */
+.typing-indicator {
+    background: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 20px;
+    display: inline-flex;
+    gap: 4px;
+    margin-bottom: 1rem;
+}
+
+.typing-indicator span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #667eea;
+    animation: typing 1.4s infinite ease-in-out;
+}
+
+@keyframes typing {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-10px); }
 }
 </style>
 """, unsafe_allow_html=True)
 
+# Initialize Groq Client
 @st.cache_resource
 def get_client():
     return Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 client = get_client()
 
-# Session state initialization
-if "user" not in st.session_state:
-    st.session_state.user = None
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-if "input_key" not in st.session_state:
-    st.session_state.input_key = 0
-if "last_time" not in st.session_state:
-    st.session_state.last_time = 0
-if "toast_msg" not in st.session_state:
-    st.session_state.toast_msg = None
+# Session State Initialization
+def init_session():
+    defaults = {
+        "user": None,
+        "chat_history": [],
+        "input_key": 0,
+        "last_time": 0,
+        "toast_msg": None,
+        "is_typing": False,
+        "sidebar_state": "expanded"
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
 
-def show_toast(msg):
-    st.session_state.toast_msg = msg
+init_session()
 
-def safe_time(chat):
+# Helper Functions
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def show_toast(msg, is_error=False):
+    st.session_state.toast_msg = {"msg": msg, "error": is_error}
+
+def safe_time(timestamp):
     try:
-        return datetime.fromisoformat(chat['timestamp']).strftime("%I:%M %p")
+        return datetime.fromisoformat(timestamp).strftime("%I:%M %p")
     except:
         return datetime.now().strftime("%I:%M %p")
 
@@ -296,6 +419,7 @@ def save_memory(data):
 def rate_limit():
     now = time.time()
     if now - st.session_state.last_time < 2:
+        show_toast("Please wait 2 seconds between messages!", True)
         return False
     st.session_state.last_time = now
     return True
@@ -304,27 +428,28 @@ def ai_respond(prompt):
     models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
     for model in models:
         try:
-            with st.spinner("🤖 NEXUS Pro AI is thinking..."):
-                resp = client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": """
-You are NEXUS Pro AI - A Professional AI Assistant.
-Creator: Engr Babar Ali Jatoi from Pakistan
-Built with Streamlit + Groq AI
+            resp = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": """
+You are NEXUS Pro AI - Enterprise Grade AI Assistant
+Creator: Engr Babar Ali Jatoi (Pakistan)
+Built with: Streamlit + Groq AI Cloud
 
-Response Guidelines:
-- Respond in the user's language
-- Be professional, helpful, and concise
+Guidelines:
+- Respond professionally in user's language
+- Be helpful, accurate, and concise
 - If asked about creator: "Engr Babar Ali Jatoi from Pakistan"
-- If asked about developer: "Engr Babar Ali Jatoi (Pakistan)"
-- Maintain a friendly yet professional tone
-                        """},
-                        {"role": "user", "content": prompt}
-                    ]
-                )
-                return resp.choices[0].message.content, model
-        except:
+- If asked about capabilities: List all features professionally
+- Maintain enterprise-level response quality
+                    """},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=1000
+            )
+            return resp.choices[0].message.content, model
+        except Exception as e:
             continue
     return "⚠️ Service temporarily unavailable. Please try again.", "Error"
 
@@ -334,86 +459,155 @@ def clear_chat():
         save_memory([])
     show_toast("Chat cleared successfully!")
 
-def copy_message(text):
-    st.write(f"📋 Copied to clipboard: {text[:50]}...")
-    show_toast("Copied to clipboard!")
+def delete_account():
+    users = load_users()
+    if st.session_state.user in users:
+        del users[st.session_state.user]
+        with open("users.json", "w") as f:
+            json.dump(users, f)
+        
+        memory_file = f"memory/{st.session_state.user}.json"
+        if os.path.exists(memory_file):
+            os.remove(memory_file)
+        
+        st.session_state.user = None
+        st.session_state.chat_history = []
+        show_toast("Account deleted successfully!")
 
 # Login/Signup Section
 if not st.session_state.user:
-    st.markdown('<h1 class="main-header">🤖 NEXUS Pro AI</h1>', unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #64748b;'>by Engr Babar Ali Jatoi | Pakistan</p>", unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("### 🔐 Login")
-        username = st.text_input("Username", key="login_user")
-        password = st.text_input("Password", type="password", key="login_pass")
-        if st.button("🚀 Login", use_container_width=True):
-            users = load_users()
-            if username in users and users[username] == password:
-                st.session_state.user = username
-                st.session_state.chat_history = load_memory()
-                st.rerun()
-            else:
-                st.error("❌ Invalid credentials!")
-    
+    col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("### 📝 Sign Up")
-        new_user = st.text_input("Username", key="signup_user")
-        new_pass = st.text_input("Password", type="password", key="signup_pass")
-        if st.button("✨ Sign Up", use_container_width=True):
-            users = load_users()
-            if new_user and new_pass:
-                if new_user not in users:
-                    users[new_user] = new_pass
-                    with open("users.json", "w") as f:
-                        json.dump(users, f)
-                    st.success("✅ Account created! Please login.")
+        st.markdown("""
+        <div style="background: white; border-radius: 20px; padding: 2rem; margin-top: 3rem; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <div style="font-size: 4rem;">🎯</div>
+                <h1 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">NEXUS Pro AI</h1>
+                <p style="color: #64748b;">Enterprise AI Assistant by Engr Babar Ali Jatoi</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        tab1, tab2 = st.tabs(["🔐 Login", "📝 Sign Up"])
+        
+        with tab1:
+            username = st.text_input("Username", key="login_user")
+            password = st.text_input("Password", type="password", key="login_pass")
+            if st.button("Login", use_container_width=True):
+                users = load_users()
+                hashed_pass = hash_password(password)
+                if username in users and users[username] == hashed_pass:
+                    st.session_state.user = username
+                    st.session_state.chat_history = load_memory()
+                    st.rerun()
                 else:
-                    st.error("❌ Username already exists!")
-            else:
-                st.error("❌ Please fill all fields!")
+                    st.error("Invalid credentials!")
+        
+        with tab2:
+            new_user = st.text_input("Username", key="signup_user")
+            new_pass = st.text_input("Password", type="password", key="signup_pass")
+            confirm_pass = st.text_input("Confirm Password", type="password", key="confirm_pass")
+            if st.button("Sign Up", use_container_width=True):
+                if new_user and new_pass and confirm_pass:
+                    if new_pass == confirm_pass:
+                        users = load_users()
+                        if new_user not in users:
+                            users[new_user] = hash_password(new_pass)
+                            with open("users.json", "w") as f:
+                                json.dump(users, f)
+                            st.success("Account created! Please login.")
+                        else:
+                            st.error("Username already exists!")
+                    else:
+                        st.error("Passwords don't match!")
+                else:
+                    st.error("Please fill all fields!")
+        
+        st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
-# Main App Interface
-# Header with buttons
-col1, col2, col3 = st.columns([2, 1, 1])
-
-with col1:
-    st.markdown(f"""
-    <div class="header-bar">
-        <h2 style='margin: 0; color: #1e293b;'>🤖 NEXUS Pro AI</h2>
-        <p style='margin: 0; color: #64748b;font-size:0.85rem;'>
-            Welcome, {st.session_state.user} | by Engr Babar Ali Jatoi
-        </p>
+# Main App - Sidebar
+with st.sidebar:
+    st.markdown("""
+    <div class="sidebar-header">
+        <div style="font-size: 3rem;">🎯</div>
+        <h3>NEXUS Pro AI</h3>
+        <p style="color: #64748b; font-size: 0.8rem;">Enterprise Edition</p>
     </div>
     """, unsafe_allow_html=True)
-
-with col2:
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("📋 History", use_container_width=True):
+    
+    # User Stats
+    total_msgs = len(st.session_state.chat_history)
+    st.markdown(f"""
+    <div class="stat-card">
+        <div class="stat-number">{total_msgs}</div>
+        <div>Total Messages</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Buttons
+    if st.button("📋 View History", use_container_width=True):
         if st.session_state.chat_history:
-            st.info(f"Total {len(st.session_state.chat_history)//2} conversations")
+            st.info(f"📊 You have {total_msgs//2} conversations")
         else:
             st.info("No chat history yet")
+    
+    if st.button("🗑️ Clear Chat", use_container_width=True):
+        clear_chat()
+        st.rerun()
+    
+    if st.button("📊 Export Chat", use_container_width=True):
+        if st.session_state.chat_history:
+            export_data = json.dumps(st.session_state.chat_history, indent=2)
+            st.download_button("Download JSON", export_data, "nexus_chat_history.json", "application/json")
+    
+    st.markdown("---")
+    
+    # Settings
+    with st.expander("⚙️ Settings"):
+        temp = st.slider("AI Creativity", 0.0, 1.0, 0.7, 0.1)
+        st.caption(f"Current: {temp}")
+        
+        if st.button("💾 Save Settings"):
+            show_toast("Settings saved!")
+    
+    st.markdown("---")
+    
+    if st.button("👤 Profile"):
+        st.info(f"User: {st.session_state.user}")
+    
+    if st.button("🚪 Logout", use_container_width=True):
+        st.session_state.user = None
+        st.session_state.chat_history = []
+        st.rerun()
+    
+    if st.button("⚠️ Delete Account", use_container_width=True):
+        delete_account()
+        st.rerun()
+    
+    st.markdown("---")
+    st.caption(f"© 2026 NEXUS Pro AI\nby Engr Babar Ali Jatoi\nPakistan")
 
-with col3:
-    st.markdown("<br>", unsafe_allow_html=True)
-    col_clear, col_logout = st.columns(2)
-    with col_clear:
-        if st.button("🗑️ Clear", use_container_width=True):
-            clear_chat()
-            st.rerun()
-    with col_logout:
-        if st.button("🚪 Exit", use_container_width=True):
-            st.session_state.user = None
-            st.session_state.chat_history = []
-            st.rerun()
+# Main Chat Area
+st.markdown(f"""
+<div class="pro-header">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h2 style="margin: 0;">🤖 NEXUS Pro AI</h2>
+            <p style="margin: 0; color: #64748b;">Welcome back, {st.session_state.user}</p>
+        </div>
+        <div style="display: flex; gap: 1rem;">
+            <span style="background: #10b981; color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem;">● Online</span>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-# Chat Container
+# Chat Messages Container
 chat_container = st.container()
 with chat_container:
-    st.markdown('<div class="chat-container" id="chatBox">', unsafe_allow_html=True)
+    st.markdown('<div class="chat-messages" id="chatMessages">', unsafe_allow_html=True)
     
     if st.session_state.chat_history:
         for i in range(0, len(st.session_state.chat_history), 2):
@@ -423,12 +617,15 @@ with chat_container:
                 
                 # User Message
                 st.markdown(f"""
-                <div class="user-wrapper">
-                    <div class="message-bubble user-message">
-                        <div>{user_msg.get('user', '')}</div>
-                        <div class="message-time">
-                            <span>{safe_time(user_msg)}</span>
-                            <button class="copy-btn" onclick="navigator.clipboard.writeText(`{user_msg.get('user', '')}`)">📋</button>
+                <div class="message user">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span>👤 {st.session_state.user}</span>
+                            <span>{safe_time(user_msg.get('timestamp', ''))}</span>
+                        </div>
+                        <div class="message-text">{user_msg.get('user', '')}</div>
+                        <div class="message-actions">
+                            <button class="action-btn" onclick="copyToClipboard('{user_msg.get('user', '').replace("'", "\\'")}')">📋 Copy</button>
                         </div>
                     </div>
                 </div>
@@ -436,99 +633,92 @@ with chat_container:
                 
                 # AI Message
                 st.markdown(f"""
-                <div class="ai-wrapper">
-                    <div class="message-bubble ai-message">
-                        <div>{ai_msg.get('bot', '')}</div>
-                        <div class="message-time">
-                            <span>🤖 NEXUS • {safe_time(ai_msg)}</span>
-                            <button class="copy-btn" onclick="navigator.clipboard.writeText(`{ai_msg.get('bot', '')}`)">📋 Copy</button>
+                <div class="message ai">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span>🤖 NEXUS Pro AI</span>
+                            <span>{safe_time(ai_msg.get('timestamp', ''))}</span>
+                        </div>
+                        <div class="message-text">{ai_msg.get('bot', '')}</div>
+                        <div class="message-actions">
+                            <button class="action-btn" onclick="copyToClipboard('{ai_msg.get('bot', '').replace("'", "\\'")}')">📋 Copy</button>
+                            <button class="action-btn" onclick="speakText('{ai_msg.get('bot', '').replace("'", "\\'")}')">🔊 Read</button>
                         </div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
     else:
         st.markdown("""
-        <div style='text-align: center; padding: 4rem; color: #64748b;'>
-            <div style='font-size: 4rem; margin-bottom: 1rem;'>💬</div>
+        <div style="text-align: center; padding: 4rem;">
+            <div style="font-size: 4rem; margin-bottom: 1rem;">💬</div>
             <h3>Welcome to NEXUS Pro AI</h3>
             <p>Start a conversation with Engr Babar Ali Jatoi's AI Assistant</p>
-            <p style='font-size:0.85rem;'>Powered by Groq Cloud • Ultra Fast Responses</p>
+            <p style="color: #64748b;">Enterprise-grade AI at your fingertips</p>
         </div>
         """, unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Input Section
-with st.container():
-    st.markdown('<div class="input-container">', unsafe_allow_html=True)
-    
-    col_input, col_send = st.columns([6, 1])
-    
-    with col_input:
-        user_input = st.text_input(
-            "",
-            key=f"msg_{st.session_state.input_key}",
-            placeholder="Ask NEXUS Pro AI anything...",
-            label_visibility="collapsed"
-        )
-    
-    with col_send:
-        send_clicked = st.button("📤", key="send_btn", use_container_width=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    if send_clicked and user_input.strip():
-        if rate_limit():
-            # Add user message
-            new_user_msg = {
-                "user": user_input,
-                "timestamp": datetime.now().isoformat()
-            }
-            st.session_state.chat_history.append(new_user_msg)
-            save_memory(st.session_state.chat_history)
-            
-            # Get AI response
-            answer, model_used = ai_respond(user_input)
-            
-            # Add AI response
-            new_ai_msg = {
-                "bot": answer,
-                "timestamp": datetime.now().isoformat()
-            }
-            st.session_state.chat_history.append(new_ai_msg)
-            save_memory(st.session_state.chat_history)
-            
-            # Reset input
-            st.session_state.input_key += 1
-            st.rerun()
-        else:
-            show_toast("Please wait 2 seconds between messages!")
-
-# Toast message
-if st.session_state.toast_msg:
-    st.markdown(f'<div class="toast">{st.session_state.toast_msg}</div>', unsafe_allow_html=True)
-    time.sleep(0.1)
-    st.session_state.toast_msg = None
-
-# Auto-scroll JavaScript
+# Input Area
 st.markdown("""
+<div class="input-area">
+    <div class="input-wrapper">
+        <input type="text" class="input-field" id="userInput" placeholder="Ask NEXUS Pro AI anything..." autocomplete="off">
+        <button class="send-btn" id="sendBtn">📤</button>
+    </div>
+</div>
+
 <script>
-function scrollToBottom() {
-    const chatContainer = document.querySelector('.chat-container');
-    if(chatContainer) {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text);
+    showToast('Copied to clipboard! 📋');
+}
+
+function speakText(text) {
+    if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.9;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+        showToast('Reading message... 🔊');
+    } else {
+        showToast('Text-to-speech not supported', true);
     }
+}
+
+function showToast(msg, isError = false) {
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification' + (isError ? ' toast-error' : '');
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+}
+
+// Auto-scroll
+function scrollToBottom() {
+    const container = document.querySelector('.chat-messages');
+    if (container) container.scrollTop = container.scrollHeight;
 }
 scrollToBottom();
 setInterval(scrollToBottom, 100);
+
+// Send message on Enter
+document.getElementById('userInput')?.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        document.getElementById('sendBtn').click();
+    }
+});
 </script>
 """, unsafe_allow_html=True)
 
-# Footer
-st.markdown("""
-<div style='text-align: center; padding: 2rem 1rem 1rem 1rem; color: #94a3b8; font-size: 0.8rem;'>
-    <p>🤖 NEXUS Pro AI • Created by Engr Babar Ali Jatoi (Pakistan)</p>
-    <p>Powered by Groq AI • Built with Streamlit • Real-time Conversations</p>
-    <p>© 2026 All Rights Reserved</p>
-</div>
-""", unsafe_allow_html=True)
+# Handle input via Streamlit
+user_input = st.text_input("", key=f"input_{st.session_state.input_key}", label_visibility="collapsed")
+
+col1, col2, col3 = st.columns([1, 1, 10])
+with col2:
+    if st.button("📤", key="send_message"):
+        if user_input and user_input.strip():
+            if rate_limit():
+                # Add user message
+                st.sess
