@@ -4,8 +4,14 @@ import os
 import time
 from datetime import datetime
 from groq import Groq
+from PIL import Image
 
-st.set_page_config(page_title="🤖 NEXUS Pro AI", page_icon="🤖", layout="wide")
+# --- LOGO SETTING ---
+try:
+    logo_img = Image.open("logo.png")
+    st.set_page_config(page_title="NEXUS Pro AI", page_icon=logo_img, layout="wide")
+except:
+    st.set_page_config(page_title="🤖 NEXUS Pro AI", page_icon="🤖", layout="wide")
 
 st.markdown("""
 <style>
@@ -14,7 +20,7 @@ html, body, [class*="css"]  {font-family: 'Inter', sans-serif;}
 .main-header {font-size: 2.5rem !important; font-weight: 700 !important; 
     background: linear-gradient(135deg, #6366f1, #8b5cf6);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    text-align: center; margin: 1rem 0;}
+    text-align: center; margin: 0.5rem 0;}
 .chat-container {height: 70vh; overflow-y: auto; padding: 2rem;
     background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
     border-radius: 20px; margin: 1rem 0; box-shadow: 0 20px 60px rgba(0,0,0,0.1);}
@@ -95,12 +101,6 @@ def ai_respond(prompt):
 You are NEXUS Pro AI - Professional AI Assistant.
 Creator: Engr Babar Ali Jatoi (Pakistan)
 Built with ❤️ using Streamlit + Groq AI
-
-Jab koi puche:
-- "Kaun banaya?" → "Engr Babar Ali Jatoi ne banaya!"
-- "Developer?" → "Engr Babar Ali Jatoi from Pakistan"
-- "Team?" → "Solo project by Engr Babar Ali Jatoi"
-
 User ki language mein jawab do. Professional raho!
                         """},
                         {"role": "user", "content": prompt}
@@ -110,9 +110,15 @@ User ki language mein jawab do. Professional raho!
         except: continue
     return "Kuch galat ho gaya, dobara try karo!", "Error"
 
+# --- LOGIN SCREEN LOGO ---
 if not st.session_state.user:
-    st.markdown('<h1 class="main-header">🤖 NEXUS Pro AI</h1>', unsafe_allow_html=True)
-    st.markdown("### by Engr Babar Ali Jatoi | Fast • Smart • Professional")
+    col_l1, col_l2, col_l3 = st.columns([1,1,1])
+    with col_l2:
+        try: st.image("logo.png", width=150)
+        except: st.markdown('<h1 style="text-align:center;">🤖</h1>', unsafe_allow_html=True)
+    
+    st.markdown('<h1 class="main-header">NEXUS Pro AI</h1>', unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center;'>by Engr Babar Ali Jatoi | Fast • Smart • Professional</p>", unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     with col1:
@@ -141,17 +147,21 @@ if not st.session_state.user:
             st.error("❌ Already exists!")
     st.stop()
 
+# --- MAIN APP LOGO & HEADER ---
 st.markdown("""
 <div class="header-bar">
     <div style='display: flex; justify-content: space-between; align-items: center;'>
-        <div>
-            <h2 style='margin: 0; color: #1e293b;'>🤖 NEXUS Pro AI</h2>
-            <p style='margin: 0; color: #64748b;'>by Engr Babar Ali Jatoi • Hi, """ + st.session_state.user + """</p>
+        <div style='display: flex; align-items: center; gap: 15px;'>
+            <img src="https://raw.githubusercontent.com/jatoizah700-lang/Babar-Al-Pro/main/logo.png" width="50">
+            <div>
+                <h2 style='margin: 0; color: #1e293b;'>NEXUS Pro AI</h2>
+                <p style='margin: 0; color: #64748b;'>by Engr Babar Ali Jatoi • Hi, """ + st.session_state.user + """</p>
+            </div>
         </div>
         <div style='display: flex; gap: 0.5rem;'>
-            <button class="btn-icon btn-secondary" title="History">📋</button>
-            <button class="btn-icon btn-secondary" title="Clear" onclick="location.reload()">🗑️</button>
-            <button class="btn-icon btn-primary" title="Logout" onclick="location.reload()">🚪</button>
+            <button class="btn-icon btn-secondary">📋</button>
+            <button class="btn-icon btn-secondary">🗑️</button>
+            <button class="btn-icon btn-primary">🚪</button>
         </div>
     </div>
 </div>
@@ -166,29 +176,13 @@ with st.container():
             ts = safe_time(chat)
             
             if 'user' in chat:
-                with col2: st.markdown(f"""
-                <div class="message-bubble user-message">
-                    <div style='font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.5rem;'>
-                        {ts}
-                    </div>
-                    {chat['user']}
-                </div>
-                """, unsafe_allow_html=True)
-                with col1: st.empty()
+                with col2: st.markdown(f'<div class="message-bubble user-message"><div style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.5rem;">{ts}</div>{chat["user"]}</div>', unsafe_allow_html=True)
             else:
-                with col1: st.markdown(f"""
-                <div class="message-bubble ai-message">
-                    <div style='font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.5rem;'>
-                        NEXUS Pro AI • {ts}
-                    </div>
-                    {chat['bot']}
-                </div>
-                """, unsafe_allow_html=True)
-                with col2: st.empty()
+                with col1: st.markdown(f'<div class="message-bubble ai-message"><div style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.5rem;">NEXUS Pro AI • {ts}</div>{chat["bot"]}</div>', unsafe_allow_html=True)
     else:
-        st.markdown("""
-        <div style='text-align: center; color: #64748b; margin-top: 8rem;'>
-            <div style='font-size: 5rem; margin-bottom: 1rem;'>🤖</div>
+        st.markdown(f"""
+        <div style='text-align: center; color: #64748b; margin-top: 5rem;'>
+            <img src="https://raw.githubusercontent.com/jatoizah700-lang/Babar-Al-Pro/main/logo.png" width="100" style="margin-bottom:1rem;">
             <h3>Engr Babar Ali Jatoi ka NEXUS Pro AI</h3>
             <p>Pehla message bhejo shuru karne ke liye!</p>
         </div>
@@ -196,44 +190,23 @@ with st.container():
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown("""
-<div class="input-container">
-    <div style='display: flex; gap: 1rem; align-items: center;'>
-""", unsafe_allow_html=True)
+st.markdown('<div class="input-container"><div style="display: flex; gap: 1rem; align-items: center;">', unsafe_allow_html=True)
 
 user_input = st.text_input("", key=f"inp_{st.session_state.input_key}", 
                           placeholder="Engr Babar Ali Jatoi ke AI se kuch poocho...", 
                           label_visibility="collapsed")
 
-if st.button("📤", key="send_btn", use_container_width=False, type="primary"):
+if st.button("📤", key="send_btn", type="primary"):
     if user_input.strip():
         rate_limit()
         st.session_state.input_key += 1
-        st.session_state.chat_history.append({"user": user_input})
+        st.session_state.chat_history.append({"user": user_input, "timestamp": datetime.now().isoformat()})
         save_memory(st.session_state.chat_history)
         
-        with st.spinner("🤖 Engr Babar Ali Jatoi ka AI..."):
-            answer, _ = ai_respond(user_input)
-            st.session_state.chat_history.append({"bot": answer})
-            save_memory(st.session_state.chat_history)
-        
+        answer, _ = ai_respond(user_input)
+        st.session_state.chat_history.append({"bot": answer, "timestamp": datetime.now().isoformat()})
+        save_memory(st.session_state.chat_history)
         st.rerun()
 
 st.markdown("</div></div>", unsafe_allow_html=True)
-
-st.markdown("""
-<script>
-const chat = document.getElementById('messages');
-chat.scrollTop = chat.scrollHeight;
-const observer = new MutationObserver(() => {
-    chat.scrollTop = chat.scrollHeight;
-});
-observer.observe(chat, {childList: true, subtree: true});
-</script>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-<div style='text-align: center; padding: 3rem; color: #94a3b8; font-size: 0.9rem;'>
-    🤖 NEXUS Pro AI • Made by Engr Babar Ali Jatoi • Powered by Groq • © 2026 Pakistan
-</div>
-""", unsafe_allow_html=True)
+            
