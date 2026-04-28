@@ -36,10 +36,6 @@ html, body, [class*="css"]  {font-family: 'Inter', sans-serif;}
 .header-bar {background: white; padding: 1rem 2rem; border-radius: 15px; 
     box-shadow: 0 10px 40px rgba(0,0,0,0.1); margin-bottom: 1rem;}
 @keyframes fadeInUp {from {opacity: 0; transform: translateY(20px);} to {opacity: 1; transform: translateY(0);}}
-.modal {display: none; position: fixed; z-index: 2000; left: 0; top: 0; 
-    width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);}
-.modal-content {background: white; margin: 15% auto; padding: 2rem; 
-    border-radius: 15px; width: 90%; max-width: 500px; text-align: center;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -49,13 +45,15 @@ def get_client():
 
 client = get_client()
 
-# Initialize session state
+# Initialize session state - FIXED KEY MANAGEMENT
 if "chat_history" not in st.session_state: 
     st.session_state.chat_history = []
 if "input_key" not in st.session_state: 
     st.session_state.input_key = 0
 if "last_time" not in st.session_state: 
     st.session_state.last_time = 0
+if "processing" not in st.session_state:
+    st.session_state.processing = False
 
 def safe_time(chat):
     try: 
@@ -147,105 +145,105 @@ with col1:
 with col2:
     col_btn1, col_btn2, col_btn3 = st.columns(3)
     with col_btn1:
-        if st.button("📋 History", key="history", help="Load chat history"):
-            load_chat_history()
-            st.success("✅ Chat history loaded!")
+        if st.button("📋 History", key="history_btn"):
+            if load_chat_history():
+                st.success("✅ Chat history loaded!")
+            else:
+                st.warning("ℹ️ No saved history found!")
             st.rerun()
     with col_btn2:
-        if st.button("🗑️ Clear Chat", key="clear", help="Clear all messages"):
-            if st.session_state.chat_history:
-                st.session_state.chat_history = []
-                save_chat_history()
-                st.success("✅ Chat cleared!")
-                st.rerun()
-            else:
-                st.warning("ℹ️ Chat already empty!")
-    with col_btn3:
-        if st.button("🔄 New Chat", key="new", help="Start fresh"):
+        if st.button("🗑️ Clear", key="clear_btn"):
             clear_chat()
+    with col_btn3:
+        if st.button("🔄 New", key="new_btn"):
+            st.session_state.chat_history = []
+            save_chat_history()
+            st.success("✅ New chat started!")
+            st.rerun()
 
 # Chat Display
-st.markdown('<div class="chat-container" id="messages">', unsafe_allow_html=True)
-
-if st.session_state.chat_history:
-    for chat in st.session_state.chat_history:
-        col1, col2 = st.columns([3, 1]) if 'user' in chat else st.columns([1, 3])
-        ts = safe_time(chat)
-        
-        if 'user' in chat:
-            with col2:
-                st.markdown(f"""
-                <div class="message-bubble user-message">
-                    <div style='font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.5rem;'>
-                        You • {ts}
-                    </div>
-                    {chat['user']}
-                </div>
-                """, unsafe_allow_html=True)
-            with col1: st.empty()
-        else:
-            with col1:
-                st.markdown(f"""
-                <div class="message-bubble ai-message">
-                    <div style='font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.5rem;'>
-                        NEXUS Pro AI • {ts}
-                    </div>
-                    {chat['bot']}
-                </div>
-                """, unsafe_allow_html=True)
-            with col2: st.empty()
-else:
-    st.markdown("""
-    <div style='text-align: center; color: #64748b; margin-top: 8rem;'>
-        <div style='font-size: 5rem; margin-bottom: 1rem;'>🤖</div>
-        <h3>Engr Babar Ali Jatoi ka NEXUS Pro AI</h3>
-        <p>Pehla message bhejo shuru karne ke liye!</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# Input Area
-st.markdown("""
-<div class="input-container">
-    <div style='display: flex; gap: 1rem; align-items: center;'>
-""", unsafe_allow_html=True)
-
-user_input = st.text_input("", key=f"inp_{st.session_state.input_key}", 
-                          placeholder="Engr Babar Ali Jatoi ke AI se kuch poocho...", 
-                          label_visibility="collapsed")
-
-col_input, col_send = st.columns([5, 1])
-with col_input:
-    user_input = st.text_input("", key=f"inp_{st.session_state.input_key}", 
-                              placeholder="Engr Babar Ali Jatoi ke AI se kuch poocho...", 
-                              label_visibility="collapsed")
-with col_send:
-    if st.button("📤", key="send_btn", use_container_width=True, type="primary"):
-        if user_input.strip():
-            rate_limit()
-            st.session_state.input_key += 1
+with st.container():
+    st.markdown('<div class="chat-container" id="chat_messages">', unsafe_allow_html=True)
+    
+    if st.session_state.chat_history:
+        for i, chat in enumerate(st.session_state.chat_history):
+            col1, col2 = st.columns([3, 1]) if 'user' in chat else st.columns([1, 3])
+            ts = safe_time(chat)
             
-            # Add user message with timestamp
+            if 'user' in chat:
+                with col2:
+                    st.markdown(f"""
+                    <div class="message-bubble user-message">
+                        <div style='font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.5rem;'>
+                            You • {ts}
+                        </div>
+                        {chat['user']}
+                    </div>
+                    """, unsafe_allow_html=True)
+                with col1: st.empty()
+            else:
+                with col1:
+                    st.markdown(f"""
+                    <div class="message-bubble ai-message">
+                        <div style='font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.5rem;'>
+                            NEXUS Pro AI • {ts}
+                        </div>
+                        {chat['bot']}
+                    </div>
+                    """, unsafe_allow_html=True)
+                with col2: st.empty()
+    else:
+        st.markdown("""
+        <div style='text-align: center; color: #64748b; margin-top: 8rem;'>
+            <div style='font-size: 5rem; margin-bottom: 1rem;'>🤖</div>
+            <h3>Engr Babar Ali Jatoi ka NEXUS Pro AI</h3>
+            <p>Pehla message bhejo shuru karne ke liye!</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# FIXED Input Area - SINGLE TEXT INPUT ONLY
+if not st.session_state.processing:
+    st.markdown("""
+    <div class="input-container">
+        <div style='display: flex; gap: 1rem; align-items: center;'>
+    """, unsafe_allow_html=True)
+    
+    # SINGLE TEXT INPUT - FIXED KEY
+    user_input = st.text_input(
+        "Type your message here...", 
+        key="main_input",
+        placeholder="Engr Babar Ali Jatoi ke AI se kuch poocho...", 
+        label_visibility="collapsed"
+    )
+    
+    # Send button
+    if st.button("📤 Send", key="send_unique", type="primary", use_container_width=True):
+        if user_input.strip():
+            st.session_state.processing = True
+            rate_limit()
+            
+            # Add user message
             user_msg = {"user": user_input, "timestamp": datetime.now().isoformat()}
             st.session_state.chat_history.append(user_msg)
             save_chat_history()
             
             # Get AI response
-            with st.spinner("🤖 Engr Babar Ali Jatoi ka AI..."):
-                answer, model = ai_respond(user_input)
-                ai_msg = {"bot": answer, "timestamp": datetime.now().isoformat()}
-                st.session_state.chat_history.append(ai_msg)
-                save_chat_history()
+            answer, model = ai_respond(user_input)
+            ai_msg = {"bot": answer, "timestamp": datetime.now().isoformat()}
+            st.session_state.chat_history.append(ai_msg)
+            save_chat_history()
             
+            st.session_state.processing = False
             st.rerun()
+    
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
-st.markdown("</div></div>", unsafe_allow_html=True)
-
-# Auto-scroll script
+# Auto-scroll
 st.markdown("""
 <script>
-const chat = document.getElementById('messages');
+const chat = document.getElementById('chat_messages');
 if (chat) {
     chat.scrollTop = chat.scrollHeight;
     const observer = new MutationObserver(() => {
