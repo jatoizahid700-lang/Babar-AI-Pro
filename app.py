@@ -3,11 +3,8 @@ import json
 import os  
 from datetime import datetime  
 from groq import Groq  
-import hashlib  
 import re  
 import base64  
-import pyttsx3  
-from io import BytesIO  
 
 # ===== CONFIGURATION =====  
 st.set_page_config(  
@@ -17,118 +14,120 @@ st.set_page_config(
     initial_sidebar_state="collapsed"  
 )  
 
-# ===== ADVANCED CUSTOM CSS =====  
+# ===== CUSTOM CSS =====  
 st.markdown("""  
 <style>  
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');  
+* { font-family: 'Inter', sans-serif; box-sizing: border-box; }  
 
-* {  
-    font-family: 'Inter', sans-serif;  
-    box-sizing: border-box;  
-}  
-
-/* Main Gradient Background */  
-.stApp {  
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);  
-}  
-
-/* Main Container */  
-.main-container {  
-    max-width: 1000px;  
-    margin: 0 auto;  
-    padding: 1rem;  
-}  
-
-/* Animated Header */  
 .main-header {  
-    font-size: 3rem !important;  
+    font-size: 2.8rem !important;  
     font-weight: 800 !important;  
-    background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);  
+    background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);  
     -webkit-background-clip: text;  
     -webkit-text-fill-color: transparent;  
     text-align: center;  
     margin: 1.5rem 0 0.5rem 0;  
-    letter-spacing: -1px;  
-    animation: gradientShift 3s ease infinite;  
-    background-size: 200% 200%;  
-}  
-
-@keyframes gradientShift {  
-    0% { background-position: 0% 50%; }  
-    50% { background-position: 100% 50%; }  
-    100% { background-position: 0% 50%; }  
 }  
 
 .sub-header {  
     text-align: center;  
-    color: #64748b;  
-    font-weight: 400;  
+    color: #94a3b8;  
     margin-bottom: 2rem;  
     font-size: 1rem;  
 }  
 
-.sub-header span {  
-    color: #a855f7;  
-    font-weight: 600;  
-}  
-
-/* Enhanced Control Bar */  
+/* Control Bar */  
 .control-bar {  
-    background: rgba(255,255,255,0.05);  
-    backdrop-filter: blur(10px);  
-    padding: 1rem 1.5rem;  
+    background: white;  
+    padding: 0.8rem 1.5rem;  
     border-radius: 16px;  
-    box-shadow: 0 8px 32px rgba(0,0,0,0.2);  
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);  
     margin-bottom: 1.5rem;  
     display: flex;  
     justify-content: space-between;  
     align-items: center;  
-    border: 1px solid rgba(255,255,255,0.1);  
+    border: 1px solid #f1f5f9;  
 }  
 
-.control-bar .title {  
-    font-weight: 700;  
-    color: #f1f5f9;  
-    font-size: 1.2rem;  
-}  
+.control-bar .title { font-weight: 600; color: #1e293b; font-size: 1.1rem; }  
+.control-bar .subtitle { color: #94a3b8; font-size: 0.85rem; }  
 
-.control-bar .subtitle {  
-    color: #94a3b8;  
-    font-size: 0.85rem;  
-}  
-
-.status-indicator {  
-    display: inline-block;  
-    width: 10px;  
-    height: 10px;  
-    background: #10b981;  
-    border-radius: 50%;  
-    margin-right: 0.5rem;  
-    animation: pulse 2s infinite;  
-}  
-
-@keyframes pulse {  
-    0% { opacity: 1; }  
-    50% { opacity: 0.5; }  
-    100% { opacity: 1; }  
-}  
-
-/* Chat Container with Glass Effect */  
+/* Chat Container */  
 .chat-container {  
     height: 55vh;  
     overflow-y: auto;  
     padding: 1.5rem;  
-    background: rgba(255,255,255,0.03);  
-    backdrop-filter: blur(10px);  
+    background: linear-gradient(180deg, #f8fafc, #f1f5f9);  
     border-radius: 20px;  
     margin-bottom: 1rem;  
-    border: 1px solid rgba(255,255,255,0.08);  
-    scroll-behavior: smooth;  
+    border: 1px solid #e2e8f0;  
 }  
 
-/* Modern Message Bubbles */  
+/* Messages */  
 .message {  
     margin-bottom: 1rem;  
     padding: 1rem 1.5rem;  
-    border-radius: 20px;  
-    max-width: 80%;
+    border-radius: 16px;  
+    max-width: 80%;  
+    animation: fadeIn 0.3s ease;  
+    line-height: 1.6;  
+    position: relative;  
+}  
+
+.message-user {  
+    background: linear-gradient(135deg, #3b82f6, #2563eb);  
+    color: white;  
+    margin-left: auto;  
+    border-bottom-right-radius: 4px;  
+}  
+
+.message-ai {  
+    background: linear-gradient(135deg, #10b981, #059669);  
+    color: white;  
+    margin-right: auto;  
+    border-bottom-left-radius: 4px;  
+}  
+
+.message .meta {  
+    font-size: 0.75rem;  
+    opacity: 0.8;  
+    margin-bottom: 0.4rem;  
+    display: flex;  
+    align-items: center;  
+    gap: 0.5rem;  
+}  
+
+.message .actions {  
+    position: absolute;  
+    top: 0.5rem;  
+    right: 0.5rem;  
+    display: flex;  
+    gap: 0.3rem;  
+    opacity: 0;  
+    transition: opacity 0.3s;  
+}  
+
+.message:hover .actions { opacity: 1; }  
+
+.action-btn {  
+    background: rgba(255,255,255,0.2);  
+    border: none;  
+    border-radius: 8px;  
+    padding: 0.3rem 0.5rem;  
+    color: white;  
+    font-size: 0.8rem;  
+    cursor: pointer;  
+    transition: all 0.3s;  
+}  
+
+.action-btn:hover { background: rgba(255,255,255,0.4); transform: scale(1.1); }  
+
+/* Empty State */  
+.empty-state { text-align: center; padding: 4rem 2rem; color: #94a3b8; }  
+.empty-state .icon { font-size: 4rem; margin-bottom: 1rem; }  
+.empty-state h3 { color: #64748b; }  
+
+/* Chat Input */  
+.chat-input-container {  
+    background: white;  
+    padding: 0.8rem;
