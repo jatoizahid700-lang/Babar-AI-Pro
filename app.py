@@ -6,7 +6,6 @@ from groq import Groq
 import re  
 import base64  
 
-# ===== CONFIGURATION =====  
 st.set_page_config(  
     page_title="NEXUS Pro AI",  
     page_icon="🤖",  
@@ -14,10 +13,15 @@ st.set_page_config(
     initial_sidebar_state="collapsed"  
 )  
 
-# ===== CUSTOM CSS =====  
+# CUSTOM CSS - SINGLE STRING  
 st.markdown("""  
 <style>  
-* { font-family: 'Inter', sans-serif; box-sizing: border-box; }  
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');  
+
+* {  
+    font-family: 'Inter', sans-serif;  
+    box-sizing: border-box;  
+}  
 
 .main-header {  
     font-size: 2.8rem !important;  
@@ -36,7 +40,6 @@ st.markdown("""
     font-size: 1rem;  
 }  
 
-/* Control Bar */  
 .control-bar {  
     background: white;  
     padding: 0.8rem 1.5rem;  
@@ -49,10 +52,17 @@ st.markdown("""
     border: 1px solid #f1f5f9;  
 }  
 
-.control-bar .title { font-weight: 600; color: #1e293b; font-size: 1.1rem; }  
-.control-bar .subtitle { color: #94a3b8; font-size: 0.85rem; }  
+.control-bar .title {  
+    font-weight: 600;  
+    color: #1e293b;  
+    font-size: 1.1rem;  
+}  
 
-/* Chat Container */  
+.control-bar .subtitle {  
+    color: #94a3b8;  
+    font-size: 0.85rem;  
+}  
+
 .chat-container {  
     height: 55vh;  
     overflow-y: auto;  
@@ -63,7 +73,6 @@ st.markdown("""
     border: 1px solid #e2e8f0;  
 }  
 
-/* Messages */  
 .message {  
     margin-bottom: 1rem;  
     padding: 1rem 1.5rem;  
@@ -107,7 +116,9 @@ st.markdown("""
     transition: opacity 0.3s;  
 }  
 
-.message:hover .actions { opacity: 1; }  
+.message:hover .actions {  
+    opacity: 1;  
+}  
 
 .action-btn {  
     background: rgba(255,255,255,0.2);  
@@ -120,14 +131,24 @@ st.markdown("""
     transition: all 0.3s;  
 }  
 
-.action-btn:hover { background: rgba(255,255,255,0.4); transform: scale(1.1); }  
+.action-btn:hover {  
+    background: rgba(255,255,255,0.4);  
+    transform: scale(1.1);  
+}  
 
-/* Empty State */  
-.empty-state { text-align: center; padding: 4rem 2rem; color: #94a3b8; }  
-.empty-state .icon { font-size: 4rem; margin-bottom: 1rem; }  
-.empty-state h3 { color: #64748b; }  
+.empty-state {  
+    text-align: center;  
+    padding: 4rem 2rem;  
+    color: #94a3b8;  
+}  
 
-/* Chat Input */  
-.chat-input-container {  
-    background: white;  
-    padding: 0.8rem;
+.empty-state .icon {  
+    font-size: 4rem;  
+    margin-bottom: 1rem;  
+}  
+
+.empty-state h3 {  
+    color: #64748b;  
+}  
+
+.chat-input
