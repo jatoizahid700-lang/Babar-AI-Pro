@@ -65,6 +65,7 @@ css_text += '.stat-dot { width: 8px; height: 8px; border-radius: 50%; display: i
 css_text += '.stat-dot.green { background: #10b981; box-shadow: 0 0 8px rgba(16,185,129,0.4); }'
 css_text += '.stat-dot.blue { background: #3b82f6; box-shadow: 0 0 8px rgba(59,130,246,0.4); }'
 css_text += '.stat-dot.purple { background: #6366f1; box-shadow: 0 0 8px rgba(99,102,241,0.4); }'
+css_text += '.hide-btn { height: 0 !important; padding: 0 !important; margin: 0 !important; overflow: hidden !important; border: none !important; visibility: hidden !important; }'
 css_text += '[data-testid="stSidebar"] { background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%) !important; }'
 css_text += '</style>'
 st.markdown(css_text, unsafe_allow_html=True)
@@ -89,6 +90,13 @@ with st.sidebar:
     s1.metric("Messages", total_msgs)
     s2.metric("Replies", bot_msgs)
     st.markdown("---")
+    st.markdown("**🗑️ Actions**")
+    if st.button("🗑️ Clear All Chats", use_container_width=True):
+        st.session_state.chat_history = []
+        save_chats()
+        st.success("Sab clear ho gaya!")
+        st.rerun()
+    st.markdown("---")
     st.markdown("**💡 Quick Prompts**")
     quick_prompts = ["Python factorial program", "AI kya hai simple mein", "Portfolio website banao", "Pakistan 10 facts", "Kaun banaya is AI ko", "Math solve karo"]
     for qp in quick_prompts:
@@ -109,6 +117,8 @@ if "processing" not in st.session_state:
     st.session_state.processing = False
 if "quick_prompt" not in st.session_state:
     st.session_state.quick_prompt = None
+if "do_clear" not in st.session_state:
+    st.session_state.do_clear = False
 
 @st.cache_resource
 def get_client():
@@ -179,18 +189,17 @@ def ai_respond(prompt, model, temperature):
 
 load_chats()
 
+if st.session_state.do_clear:
+    st.session_state.do_clear = False
+    st.session_state.chat_history = []
+    save_chats()
+
 hdr = '<div class="nexus-header"><div><span class="nexus-logo">🤖 NEXUS Pro AI</span><span class="nexus-badge">v2.0</span><div class="nexus-creator">Built by <span>Engr Babar Ali Jatoi</span> 🇵🇰</div></div><div class="nexus-actions">'
 hdr += '<button class="nexus-btn" onclick="document.querySelector(\'[data-testid=&quot;stSidebarToggle&quot;]\').click()">⚙️ Settings</button>'
 hdr += '<button class="nexus-btn" onclick="window.location.reload()">🔄 Refresh</button>'
 hdr += '<button class="nexus-btn danger" id="clearAllBtn">🗑️ Clear</button>'
 hdr += '</div></div>'
 st.markdown(hdr, unsafe_allow_html=True)
-
-if st.button("hidden_clear_trigger", key="hclear", label_visibility="collapsed"):
-    st.session_state.chat_history = []
-    save_chats()
-    st.success("Sab clear ho gaya!")
-    st.rerun()
 
 st_bar = '<div class="stats-bar">'
 st_bar += '<div class="stat-item"><span class="stat-dot green"></span> Online</div>'
@@ -248,7 +257,7 @@ st.markdown(iw, unsafe_allow_html=True)
 with st.form("chat_form", clear_on_submit=True):
     ci, cb = st.columns([6, 1])
     with ci:
-        user_input = st.text_input("msg", placeholder="✍️ Message likho ya suggestion click karo...", label_visibility="collapsed", key="chat_input_field")
+        user_input = st.text_input("msg", placeholder="✍️ Message likho ya suggestion click karo...", key="chat_input_field")
     with cb:
         submitted = st.form_submit_button("📤", use_container_width=True, type="primary")
 
@@ -289,7 +298,6 @@ if st.session_state.processing:
     st.session_state.processing = False
     st.rerun()
 
-# ─── JAVASCRIPT — NO TRIPLE QUOTES ───
 j1 = '<script>'
 j2 = 'function scrollToBottom(){var c=document.getElementById("nexusChat");if(c){c.scrollTop=c.scrollHeight;}}'
 j3 = 'scrollToBottom();setTimeout(scrollToBottom,300);setTimeout(scrollToBottom,800);'
@@ -300,11 +308,10 @@ j7 = 'if(inp){var setter=Object.getOwnPropertyDescriptor(window.HTMLInputElement
 j8 = 'setter.call(inp,text);inp.dispatchEvent(new Event("input",{bubbles:true}));'
 j9 = 'var btns=document.querySelectorAll(\'button[type="submit"]\');if(btns.length>0){btns[btns.length-1].click();}}};'
 j10 = 'document.getElementById("clearAllBtn")&&document.getElementById("clearAllBtn").addEventListener("click",function(){'
-j11 = 'var btns=document.querySelectorAll("button");btns.forEach(function(b){if(b.textContent.includes("hidden_clear")){b.click();}});});'
-j12 = '</script>'
-st.markdown(j1 + j2 + j3 + j4 + j5 + j6 + j7 + j8 + j9 + j10 + j11 + j12, unsafe_allow_html=True)
+j11 = 'var sidebarBtn=document.querySelector(\'[data-testid="stSidebarToggle"]\');if(sidebarBtn){sidebarBtn.click();}'
+j12 = 'setTimeout(function(){var btns=document.querySelectorAll("button");for(var i=0;i<btns.length;i++){if(btns[i].textContent.indexOf("Clear All")!==-1){btns[i].click();break;}}},500);});'
+j13 = '</script>'
+st.markdown(j1 + j2 + j3 + j4 + j5 + j6 + j7 + j8 + j9 + j10 + j11 + j12 + j13, unsafe_allow_html=True)
 
 ftr = '<div style="text-align:center;padding:4rem 1rem 1rem;color:#cbd5e1;font-size:0.78rem;">'
-ftr += '🤖 NEXUS Pro AI v2.0 &bull; Crafted by <span style="color:#6366f1;font-weight:600;">Engr Babar Ali Jatoi</span> &bull; Powered by <span style="color:#f59e0b;">Groq</span> &bull; &copy; 2025 🇵🇰'
-ftr += '</div>'
-st.markdown(ftr, unsafe_allow_html=True)
+ftr += '🤖 NEXUS Pro AI v
