@@ -29,10 +29,9 @@ html, body, [class*="css"]  {font-family: 'Inter', sans-serif;}
     width: 90%; max-width: 800px; background: white; padding: 1.5rem;
     border-radius: 25px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); z-index: 1000;}
 .btn-icon {border-radius: 50%; width: 45px; height: 45px; padding: 0; 
-    border: none; font-size: 1.2rem; transition: all 0.3s; cursor: pointer;}
+    border: none; font-size: 1.2rem; transition: all 0.3s;}
 .btn-primary {background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white;}
 .btn-secondary {background: #f1f5f9; color: #64748b;}
-.btn-danger {background: linear-gradient(135deg, #ef4444, #dc2626); color: white;}
 .header-bar {background: white; padding: 1rem 2rem; border-radius: 15px; 
     box-shadow: 0 10px 40px rgba(0,0,0,0.1); margin-bottom: 1rem;}
 @keyframes fadeInUp {from {opacity: 0; transform: translateY(20px);} to {opacity: 1; transform: translateY(0);}}
@@ -40,60 +39,48 @@ html, body, [class*="css"]  {font-family: 'Inter', sans-serif;}
 """, unsafe_allow_html=True)
 
 @st.cache_resource
-def get_client(): 
-    return Groq(api_key=st.secrets["GROQ_API_KEY"])
+def get_client(): return Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 client = get_client()
 
-# Initialize session state - FIXED KEY MANAGEMENT
-if "chat_history" not in st.session_state: 
-    st.session_state.chat_history = []
-if "input_key" not in st.session_state: 
-    st.session_state.input_key = 0
-if "last_time" not in st.session_state: 
-    st.session_state.last_time = 0
-if "processing" not in st.session_state:
-    st.session_state.processing = False
+if "user" not in st.session_state: st.session_state.user = None
+if "chat_history" not in st.session_state: st.session_state.chat_history = []
+if "input_key" not in st.session_state: st.session_state.input_key = 0
+if "last_time" not in st.session_state: st.session_state.last_time = 0
 
 def safe_time(chat):
-    try: 
-        return datetime.fromisoformat(chat['timestamp']).strftime("%H:%M")
-    except: 
-        return "Now"
+    try: return datetime.fromisoformat(chat['timestamp']).strftime("%H:%M")
+    except: return "Now"
 
-def save_chat_history():
+def load_users():
     try:
-        os.makedirs("chat_history", exist_ok=True)
-        fname = "chat_history/all_chats.json"
-        with open(fname, "w") as f: 
-            json.dump(st.session_state.chat_history, f, indent=2)
-    except: 
-        pass
+        if os.path.exists("users.json"):
+            with open("users.json") as f: return json.load(f)
+    except: pass
+    return {}
 
-def load_chat_history():
+def load_memory():
+    os.makedirs("memory", exist_ok=True)
     try:
-        fname = "chat_history/all_chats.json"
+        fname = f"memory/{st.session_state.user}.json"
         if os.path.exists(fname):
-            with open(fname, "r") as f:
+            with open(fname) as f:
                 chats = json.load(f)
                 for chat in chats:
-                    if 'timestamp' not in chat: 
-                        chat['timestamp'] = datetime.now().isoformat()
-                st.session_state.chat_history = chats
-                return True
-    except: 
-        pass
-    return False
+                    if 'timestamp' not in chat: chat['timestamp'] = datetime.now().isoformat()
+                return chats
+    except: pass
+    return []
 
-def clear_chat():
-    st.session_state.chat_history = []
-    save_chat_history()
-    st.rerun()
+def save_memory(data):
+    try:
+        fname = f"memory/{st.session_state.user}.json"
+        with open(fname, "w") as f: json.dump(data, f, indent=2)
+    except: pass
 
 def rate_limit():
     now = time.time()
-    if now - st.session_state.last_time < 2: 
-        st.rerun()
+    if now - st.session_state.last_time < 2: st.rerun()
     st.session_state.last_time = now
 
 def ai_respond(prompt):
@@ -120,77 +107,83 @@ User ki language mein jawab do. Professional raho!
                     ]
                 )
                 return resp.choices[0].message.content, model
-        except: 
-            continue
+        except: continue
     return "Kuch galat ho gaya, dobara try karo!", "Error"
 
-# Load chat history on start
-load_chat_history()
+if not st.session_state.user:
+    st.markdown('<h1 class="main-header">🤖 NEXUS Pro AI</h1>', unsafe_allow_html=True)
+    st.markdown("### by Engr Babar Ali Jatoi | Fast • Smart • Professional")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        username = st.text_input("👤 Username")
+        password = st.text_input("🔒 Password", type="password")
+        if st.button("🚀 Login", use_container_width=True):
+            users = load_users()
+            if username in users and users[username] == password:
+                st.session_state.user = username
+                st.session_state.chat_history = load_memory()
+                st.rerun()
+            st.error("❌ Invalid!")
+    
+    with col2:
+        ruser = st.text_input("👤 New Username", key="ruser")
+        rpass = st.text_input("🔒 Password", type="password", key="rpass")
+        if st.button("📝 Sign Up", use_container_width=True):
+            users = load_users()
+            if ruser not in users:
+                users[ruser] = rpass
+                with open("users.json", "w") as f: json.dump(users, f)
+                st.success("✅ Welcome!")
+                st.session_state.user = ruser
+                st.session_state.chat_history = []
+                st.rerun()
+            st.error("❌ Already exists!")
+    st.stop()
 
-# Main Header
-st.markdown('<h1 class="main-header">🤖 NEXUS Pro AI</h1>', unsafe_allow_html=True)
-st.markdown("### by Engr Babar Ali Jatoi | Fast • Smart • Professional")
-
-# Header with functional buttons
-col1, col2 = st.columns([3, 1])
-
-with col1:
-    st.markdown("""
-    <div class="header-bar">
-        <h2 style='margin: 0; color: #1e293b;'>🤖 NEXUS Pro AI</h2>
-        <p style='margin: 0; color: #64748b;'>by Engr Babar Ali Jatoi • Ready to help!</p>
+st.markdown("""
+<div class="header-bar">
+    <div style='display: flex; justify-content: space-between; align-items: center;'>
+        <div>
+            <h2 style='margin: 0; color: #1e293b;'>🤖 NEXUS Pro AI</h2>
+            <p style='margin: 0; color: #64748b;'>by Engr Babar Ali Jatoi • Hi, """ + st.session_state.user + """</p>
+        </div>
+        <div style='display: flex; gap: 0.5rem;'>
+            <button class="btn-icon btn-secondary" title="History">📋</button>
+            <button class="btn-icon btn-secondary" title="Clear" onclick="location.reload()">🗑️</button>
+            <button class="btn-icon btn-primary" title="Logout" onclick="location.reload()">🚪</button>
+        </div>
     </div>
-    """, unsafe_allow_html=True)
+</div>
+""", unsafe_allow_html=True)
 
-with col2:
-    col_btn1, col_btn2, col_btn3 = st.columns(3)
-    with col_btn1:
-        if st.button("📋 History", key="history_btn"):
-            if load_chat_history():
-                st.success("✅ Chat history loaded!")
-            else:
-                st.warning("ℹ️ No saved history found!")
-            st.rerun()
-    with col_btn2:
-        if st.button("🗑️ Clear", key="clear_btn"):
-            clear_chat()
-    with col_btn3:
-        if st.button("🔄 New", key="new_btn"):
-            st.session_state.chat_history = []
-            save_chat_history()
-            st.success("✅ New chat started!")
-            st.rerun()
-
-# Chat Display
 with st.container():
-    st.markdown('<div class="chat-container" id="chat_messages">', unsafe_allow_html=True)
+    st.markdown('<div class="chat-container" id="messages">', unsafe_allow_html=True)
     
     if st.session_state.chat_history:
-        for i, chat in enumerate(st.session_state.chat_history):
+        for chat in st.session_state.chat_history:
             col1, col2 = st.columns([3, 1]) if 'user' in chat else st.columns([1, 3])
             ts = safe_time(chat)
             
             if 'user' in chat:
-                with col2:
-                    st.markdown(f"""
-                    <div class="message-bubble user-message">
-                        <div style='font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.5rem;'>
-                            You • {ts}
-                        </div>
-                        {chat['user']}
+                with col2: st.markdown(f"""
+                <div class="message-bubble user-message">
+                    <div style='font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.5rem;'>
+                        {ts}
                     </div>
-                    """, unsafe_allow_html=True)
+                    {chat['user']}
+                </div>
+                """, unsafe_allow_html=True)
                 with col1: st.empty()
             else:
-                with col1:
-                    st.markdown(f"""
-                    <div class="message-bubble ai-message">
-                        <div style='font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.5rem;'>
-                            NEXUS Pro AI • {ts}
-                        </div>
-                        {chat['bot']}
+                with col1: st.markdown(f"""
+                <div class="message-bubble ai-message">
+                    <div style='font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.5rem;'>
+                        NEXUS Pro AI • {ts}
                     </div>
-                    """, unsafe_allow_html=True)
+                    {chat['bot']}
+                </div>
+                """, unsafe_allow_html=True)
                 with col2: st.empty()
     else:
         st.markdown("""
@@ -203,58 +196,42 @@ with st.container():
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-# FIXED Input Area - SINGLE TEXT INPUT ONLY
-if not st.session_state.processing:
-    st.markdown("""
-    <div class="input-container">
-        <div style='display: flex; gap: 1rem; align-items: center;'>
-    """, unsafe_allow_html=True)
-    
-    # SINGLE TEXT INPUT - FIXED KEY
-    user_input = st.text_input(
-        "Type your message here...", 
-        key="main_input",
-        placeholder="Engr Babar Ali Jatoi ke AI se kuch poocho...", 
-        label_visibility="collapsed"
-    )
-    
-    # Send button
-    if st.button("📤 Send", key="send_unique", type="primary", use_container_width=True):
-        if user_input.strip():
-            st.session_state.processing = True
-            rate_limit()
-            
-            # Add user message
-            user_msg = {"user": user_input, "timestamp": datetime.now().isoformat()}
-            st.session_state.chat_history.append(user_msg)
-            save_chat_history()
-            
-            # Get AI response
-            answer, model = ai_respond(user_input)
-            ai_msg = {"bot": answer, "timestamp": datetime.now().isoformat()}
-            st.session_state.chat_history.append(ai_msg)
-            save_chat_history()
-            
-            st.session_state.processing = False
-            st.rerun()
-    
-    st.markdown("</div></div>", unsafe_allow_html=True)
+st.markdown("""
+<div class="input-container">
+    <div style='display: flex; gap: 1rem; align-items: center;'>
+""", unsafe_allow_html=True)
 
-# Auto-scroll
+user_input = st.text_input("", key=f"inp_{st.session_state.input_key}", 
+                          placeholder="Engr Babar Ali Jatoi ke AI se kuch poocho...", 
+                          label_visibility="collapsed")
+
+if st.button("📤", key="send_btn", use_container_width=False, type="primary"):
+    if user_input.strip():
+        rate_limit()
+        st.session_state.input_key += 1
+        st.session_state.chat_history.append({"user": user_input})
+        save_memory(st.session_state.chat_history)
+        
+        with st.spinner("🤖 Engr Babar Ali Jatoi ka AI..."):
+            answer, _ = ai_respond(user_input)
+            st.session_state.chat_history.append({"bot": answer})
+            save_memory(st.session_state.chat_history)
+        
+        st.rerun()
+
+st.markdown("</div></div>", unsafe_allow_html=True)
+
 st.markdown("""
 <script>
-const chat = document.getElementById('chat_messages');
-if (chat) {
+const chat = document.getElementById('messages');
+chat.scrollTop = chat.scrollHeight;
+const observer = new MutationObserver(() => {
     chat.scrollTop = chat.scrollHeight;
-    const observer = new MutationObserver(() => {
-        chat.scrollTop = chat.scrollHeight;
-    });
-    observer.observe(chat, {childList: true, subtree: true});
-}
+});
+observer.observe(chat, {childList: true, subtree: true});
 </script>
 """, unsafe_allow_html=True)
 
-# Footer
 st.markdown("""
 <div style='text-align: center; padding: 3rem; color: #94a3b8; font-size: 0.9rem;'>
     🤖 NEXUS Pro AI • Made by Engr Babar Ali Jatoi • Powered by Groq • © 2026 Pakistan
